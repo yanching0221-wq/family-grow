@@ -73,21 +73,16 @@ function renderWelcome() {
 
 // ── Setup ─────────────────────────────────────────────────────
 function saveSetup() {
-  const p    = document.getElementById('setup-parent-pin').value.trim();
-  const c1n  = document.getElementById('setup-child1-name').value.trim() || '小勇者一';
-  const c1p  = document.getElementById('setup-child1-pin').value.trim();
-  const c2n  = document.getElementById('setup-child2-name').value.trim() || '小勇者二';
-  const c2p  = document.getElementById('setup-child2-pin').value.trim();
+  const p   = document.getElementById('setup-parent-pin').value.trim();
+  const c1n = document.getElementById('setup-child1-name').value.trim() || '小勇者一';
+  const c2n = document.getElementById('setup-child2-name').value.trim() || '小勇者二';
 
-  if (p.length < 4)   { alert('請輸入4位爸媽密碼'); return; }
-  if (c1p.length < 4) { alert(`請輸入「${c1n}」的4位密碼`); return; }
-  if (c2p.length < 4) { alert(`請輸入「${c2n}」的4位密碼`); return; }
-  if (new Set([p, c1p, c2p]).size < 3) { alert('三組密碼不能重複'); return; }
+  if (p.length < 4) { alert('請輸入4位爸媽密碼'); return; }
 
-  S.set('pins', { parent: p, children: [c1p, c2p] });
+  S.set('pins', { parent: p });
   const children = S.getOrDefault('children', []);
-  if (children[0]) { children[0].name = c1n; }
-  if (children[1]) { children[1].name = c2n; }
+  if (children[0]) children[0].name = c1n;
+  if (children[1]) children[1].name = c2n;
   S.set('children', children);
 
   renderWelcome();
@@ -96,13 +91,9 @@ function saveSetup() {
 
 // ── Login ─────────────────────────────────────────────────────
 function goToChildLogin(childId) {
-  window._loginChildId = childId;
-  const child = S.getOrDefault('children', []).find(c => c.id === childId);
-  document.getElementById('child-login-emoji').textContent = child?.emoji || '🧒';
-  document.getElementById('child-login-name').textContent  = child?.name  || '小勇者';
-  document.getElementById('child-pin-input').value = '';
-  document.getElementById('child-login-error').classList.add('hidden');
-  showPage('page-child-login');
+  window._currentChildId = childId;
+  renderChildMain();
+  showPage('page-child-main');
 }
 
 function goToParentLogin() {
