@@ -8,46 +8,46 @@ const S = {
 const DAY_NAMES = ['日','一','二','三','四','五','六'];
 const DAY_FULL  = ['週日','週一','週二','週三','週四','週五','週六'];
 
-// ── 等級里程碑 ─────────────────────────────────────────────────
+// ── 等級里程碑（依 1–4 點/任務 校正）─────────────────────────
 const TIERS = [
   { pts:0,   label:'勤勞小芽', emoji:'🌱', desc:'萬事起頭難，你做到了！',     bg:'bg-green-50',  text:'text-green-700'  },
-  { pts:50,  label:'習慣新星', emoji:'⭐', desc:'好習慣正在養成中，加油！',    bg:'bg-yellow-50', text:'text-yellow-700' },
-  { pts:100, label:'努力小將', emoji:'🥉', desc:'持之以恆，超棒的！',          bg:'bg-orange-50', text:'text-orange-700' },
-  { pts:200, label:'認真達人', emoji:'🥈', desc:'認真是最好的天賦！',          bg:'bg-blue-50',   text:'text-blue-700'   },
-  { pts:350, label:'習慣大師', emoji:'🥇', desc:'你已是大家的榜樣！',          bg:'bg-purple-50', text:'text-purple-700' },
-  { pts:500, label:'傳說勇者', emoji:'👑', desc:'無人能及的習慣勇者！',         bg:'bg-red-50',    text:'text-red-700'    },
+  { pts:15,  label:'習慣新星', emoji:'⭐', desc:'好習慣正在養成中，加油！',    bg:'bg-yellow-50', text:'text-yellow-700' },
+  { pts:40,  label:'努力小將', emoji:'🥉', desc:'持之以恆，超棒的！',          bg:'bg-orange-50', text:'text-orange-700' },
+  { pts:90,  label:'認真達人', emoji:'🥈', desc:'認真是最好的天賦！',          bg:'bg-blue-50',   text:'text-blue-700'   },
+  { pts:160, label:'習慣大師', emoji:'🥇', desc:'你已是大家的榜樣！',          bg:'bg-purple-50', text:'text-purple-700' },
+  { pts:250, label:'傳說勇者', emoji:'👑', desc:'無人能及的習慣勇者！',         bg:'bg-red-50',    text:'text-red-700'    },
 ];
 
 // ── 任務難度說明 ───────────────────────────────────────────────
 const DIFF_INFO = {
-  simple:  { label:'簡單', dot:'🟢', time:'5 分鐘內',     pts:5  },
-  medium:  { label:'中等', dot:'🟡', time:'15–30 分鐘',   pts:15 },
-  hard:    { label:'困難', dot:'🔴', time:'30 分鐘以上',  pts:30 },
-  special: { label:'特殊', dot:'⭐', time:'超越日常',     pts:50 },
+  simple:  { label:'簡單', dot:'🟢', time:'5 分鐘內',     pts:1 },
+  medium:  { label:'中等', dot:'🟡', time:'15–30 分鐘',   pts:2 },
+  hard:    { label:'困難', dot:'🔴', time:'30 分鐘以上',  pts:3 },
+  special: { label:'特殊', dot:'⭐', time:'超越日常',     pts:4 },
 };
 
 // ── 預設任務清單 ───────────────────────────────────────────────
 function getDefaultTasks() {
   return [
-    // ── 每日日常（全部小孩）─────────────────────────────
-    { id:1,  name:'洗自己的便當盒',               category:'每日日常', coins:5,  emoji:'🍱', daysOfWeek:[], type:'once',   targetGrade:'all', difficulty:'simple'  },
-    { id:2,  name:'完成每日作業（含連絡本簽名）',  category:'每日日常', coins:15, emoji:'📚', daysOfWeek:[], type:'once',   targetGrade:'all', difficulty:'medium'  },
-    { id:3,  name:'9點前洗澡',                    category:'每日日常', coins:5,  emoji:'🚿', daysOfWeek:[], type:'once',   targetGrade:'all', difficulty:'simple'  },
-    { id:4,  name:'做一件家事',                   category:'每日日常', coins:10, emoji:'🧹', daysOfWeek:[], type:'once',   targetGrade:'all', difficulty:'simple'  },
-    { id:5,  name:'跟長輩打招呼',                 category:'每日日常', coins:5,  emoji:'🙏', daysOfWeek:[], type:'once',   targetGrade:'all', difficulty:'simple'  },
-    { id:6,  name:'完成英文練習',                 category:'每日日常', coins:15, emoji:'🔤', daysOfWeek:[], type:'once',   targetGrade:'all', difficulty:'medium'  },
+    // ── 每日任務（全部小孩）─────────────────────────────
+    { id:1,  name:'洗自己的便當盒',               category:'每日任務', coins:1, emoji:'🍱', daysOfWeek:[], type:'once',   targetGrade:'all', difficulty:'simple'  },
+    { id:2,  name:'完成每日作業（含連絡本簽名）',  category:'每日任務', coins:2, emoji:'📚', daysOfWeek:[], type:'once',   targetGrade:'all', difficulty:'medium'  },
+    { id:3,  name:'9點前洗澡',                    category:'每日任務', coins:1, emoji:'🚿', daysOfWeek:[], type:'once',   targetGrade:'all', difficulty:'simple'  },
+    { id:4,  name:'做一件家事',                   category:'每日任務', coins:1, emoji:'🧹', daysOfWeek:[], type:'once',   targetGrade:'all', difficulty:'simple'  },
+    { id:5,  name:'跟長輩打招呼',                 category:'每日任務', coins:1, emoji:'🙏', daysOfWeek:[], type:'once',   targetGrade:'all', difficulty:'simple'  },
+    { id:6,  name:'完成英文練習',                 category:'每日任務', coins:2, emoji:'🔤', daysOfWeek:[], type:'once',   targetGrade:'all', difficulty:'medium'  },
     // ── 低年級專屬 ──────────────────────────────────────
-    { id:7,  name:'完成音樂練習',                 category:'低年級專屬', coins:10, emoji:'🎵', daysOfWeek:[], type:'once',  targetGrade:'low',  difficulty:'simple'  },
-    { id:8,  name:'練習 15 分鐘',                 category:'低年級專屬', coins:15, emoji:'⏱️', daysOfWeek:[], type:'once',  targetGrade:'low',  difficulty:'medium'  },
-    { id:9,  name:'練習 30 分鐘以上',             category:'低年級專屬', coins:30, emoji:'⏰', daysOfWeek:[], type:'once',  targetGrade:'low',  difficulty:'hard'    },
-    { id:10, name:'主動練習（不用提醒）',          category:'低年級專屬', coins:30, emoji:'💪', daysOfWeek:[], type:'once',  targetGrade:'low',  difficulty:'hard'    },
+    { id:7,  name:'完成音樂練習',                 category:'低年級專屬', coins:1, emoji:'🎵', daysOfWeek:[], type:'once',  targetGrade:'low',  difficulty:'simple'  },
+    { id:8,  name:'練習 15 分鐘',                 category:'低年級專屬', coins:2, emoji:'⏱️', daysOfWeek:[], type:'once',  targetGrade:'low',  difficulty:'medium'  },
+    { id:9,  name:'練習 30 分鐘以上',             category:'低年級專屬', coins:3, emoji:'⏰', daysOfWeek:[], type:'once',  targetGrade:'low',  difficulty:'hard'    },
+    { id:10, name:'主動練習（不用提醒）',          category:'低年級專屬', coins:3, emoji:'💪', daysOfWeek:[], type:'once',  targetGrade:'low',  difficulty:'hard'    },
     // ── 高年級專屬 ──────────────────────────────────────
-    { id:11, name:'主動複習 / 整理筆記',           category:'高年級專屬', coins:30, emoji:'📖', daysOfWeek:[], type:'once',  targetGrade:'high', difficulty:'hard'    },
-    { id:12, name:'協助規劃家庭事務',              category:'高年級專屬', coins:30, emoji:'📋', daysOfWeek:[], type:'once',  targetGrade:'high', difficulty:'hard'    },
+    { id:11, name:'主動複習 / 整理筆記',           category:'高年級專屬', coins:3, emoji:'📖', daysOfWeek:[], type:'once',  targetGrade:'high', difficulty:'hard'    },
+    { id:12, name:'協助規劃家庭事務',              category:'高年級專屬', coins:3, emoji:'📋', daysOfWeek:[], type:'once',  targetGrade:'high', difficulty:'hard'    },
     // ── 運動（可重複）─────────────────────────────────
-    { id:20, name:'跳繩500下',                    category:'運動',     coins:15, emoji:'🪢', daysOfWeek:[], type:'multi',  targetGrade:'all' },
+    { id:20, name:'跳繩500下',                    category:'運動',     coins:2, emoji:'🪢', daysOfWeek:[], type:'multi',  targetGrade:'all', difficulty:'medium' },
     // ── 每週挑戰 ────────────────────────────────────────
-    { id:21, name:'本週跳繩5000下',               category:'每週挑戰', coins:50, emoji:'🏅', daysOfWeek:[], type:'weekly', targetGrade:'all', weeklyTarget:10, autoFrom:20 },
+    { id:21, name:'本週跳繩5000下',               category:'每週挑戰', coins:4, emoji:'🏅', daysOfWeek:[], type:'weekly', targetGrade:'all', weeklyTarget:10, autoFrom:20 },
   ];
 }
 
@@ -91,6 +91,22 @@ function initData() {
 
       S.set('data_v3', true);
     }
+
+    // v4 遷移：重新命名類別 + 依難度校正點數（1/2/3/4）
+    if (!S.get('data_v4')) {
+      const coinMap = { simple:1, medium:2, hard:3, special:4 };
+      const tasks = S.getOrDefault('tasks', []);
+      tasks.forEach(t => {
+        if (t.category === '每日日常') t.category = '每日任務';
+        if (t.difficulty && coinMap[t.difficulty] !== undefined) t.coins = coinMap[t.difficulty];
+        // 跳繩500下（multi，medium）
+        if (t.id === 20 && !t.difficulty) { t.difficulty = 'medium'; t.coins = 2; }
+        // 本週跳繩5000下（weekly）
+        if (t.id === 21) t.coins = 4;
+      });
+      S.set('tasks', tasks);
+      S.set('data_v4', true);
+    }
     return;
   }
 
@@ -120,6 +136,7 @@ function initData() {
   S.set('checkIns',       {});
   S.set('lastBonusStreak',{});
   S.set('data_v3',        true);
+  S.set('data_v4',        true);
   S.set('initialized',    true);
 }
 
@@ -470,6 +487,12 @@ function switchTaskTab(type) {
   });
 }
 
+// 點數說明面板切換
+function togglePointGuide() {
+  const el = document.getElementById('point-guide-inline');
+  if (el) el.classList.toggle('hidden');
+}
+
 // ── 一次性任務列表 ─────────────────────────────────────────────
 function buildOnceHtml(tasks, todayC) {
   if (!tasks.length) return '<p class="text-center text-gray-300 py-12">今天沒有每日任務</p>';
@@ -477,8 +500,26 @@ function buildOnceHtml(tasks, todayC) {
   tasks.forEach(t => { (byCategory[t.category] = byCategory[t.category] || []).push(t); });
   let html = '';
   for (const [cat, list] of Object.entries(byCategory)) {
-    html += `<h3 class="text-sm font-semibold text-gray-500 mb-2 mt-4">${cat}</h3>
-    <div class="bg-white rounded-2xl shadow-sm divide-y divide-gray-50">`;
+    if (cat === '每日任務') {
+      // 「每日任務」標題 + 點數說明連結
+      html += `
+      <div class="flex items-center justify-between mt-4 mb-2">
+        <h3 class="text-sm font-semibold text-gray-500">每日任務</h3>
+        <button onclick="togglePointGuide()" class="text-xs text-brand font-medium underline underline-offset-2">點數說明 ▾</button>
+      </div>
+      <div id="point-guide-inline" class="hidden rounded-xl bg-brand-light px-4 py-3 mb-3 text-xs">
+        <div class="font-bold text-brand mb-2">📊 點數設計指南</div>
+        <div class="space-y-1.5 text-gray-600">
+          <div class="flex justify-between"><span>🟢 簡單（5 分鐘內）</span><span class="font-bold text-gray-700">1 點</span></div>
+          <div class="flex justify-between"><span>🟡 中等（15–30 分鐘）</span><span class="font-bold text-gray-700">2 點</span></div>
+          <div class="flex justify-between"><span>🔴 困難（30 分鐘以上）</span><span class="font-bold text-gray-700">3 點</span></div>
+          <div class="flex justify-between"><span>⭐ 特殊貢獻</span><span class="font-bold text-gray-700">4 點</span></div>
+        </div>
+      </div>`;
+    } else {
+      html += `<h3 class="text-sm font-semibold text-gray-500 mb-2 mt-4">${cat}</h3>`;
+    }
+    html += `<div class="bg-white rounded-2xl shadow-sm divide-y divide-gray-50">`;
     list.forEach(task => {
       const comp   = todayC.find(c => c.taskId === task.id);
       const boxCls = 'task-checkbox' + (comp ? ' checked' : '');
@@ -1151,7 +1192,7 @@ function renderParentTasks() {
       <input id="new-task-emoji" placeholder="Emoji（如 📚）" value="⭐" class="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-brand">
       <input id="new-task-coins" type="number" placeholder="金幣數量" value="10" class="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-brand">
       <select id="new-task-category" class="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-brand">
-        <option>每日日常</option><option>低年級專屬</option><option>高年級專屬</option><option>運動</option><option>每週挑戰</option>
+        <option>每日任務</option><option>低年級專屬</option><option>高年級專屬</option><option>運動</option><option>每週挑戰</option>
       </select>
       <div>
         <div class="text-sm text-gray-400 mb-2">適用年級</div>
@@ -1244,7 +1285,7 @@ document.addEventListener('change', e => {
   }
   // 選難度後自動建議點數
   if (e.target.name === 'new-task-difficulty') {
-    const coinMap = { simple:5, medium:15, hard:30, special:50 };
+    const coinMap = { simple:1, medium:2, hard:3, special:4 };
     const coinsEl = document.getElementById('new-task-coins');
     if (coinsEl && coinMap[e.target.value] !== undefined) coinsEl.value = coinMap[e.target.value];
   }
