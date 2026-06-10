@@ -554,7 +554,7 @@ function buildOnceHtml(tasks, todayC) {
       const dayTag = task.daysOfWeek?.length ? `<span class="text-xs text-blue-300 ml-1">（${task.daysOfWeek.map(d=>'週'+DAY_NAMES[d]).join('/')}）</span>` : '';
       let status = '';
       if (comp?.status === 'pending')  status = `<span class="text-xs text-orange-400">等待爸媽審核中...</span><button onclick="cancelTask(${task.id})" class="text-xs text-gray-300 underline ml-2">取消</button>`;
-      if (comp?.status === 'approved') status = `<span class="text-xs text-green-500">已獲得 +${comp.coins} 金幣</span>`;
+      if (comp?.status === 'approved') status = `<span class="text-xs text-green-500">已獲得 +${task.coins} 點</span>`;
       if (comp?.status === 'rejected') status = `<span class="text-xs text-red-400">爸媽駁回</span>`;
       html += `<div class="flex items-center p-4 gap-4">
         <div class="${boxCls}" onclick="${!comp ? `submitTask(${task.id})` : ''}">
@@ -564,7 +564,7 @@ function buildOnceHtml(tasks, todayC) {
           <div class="font-medium">${task.emoji} ${task.name}${dayTag}</div>
           <div>${status}</div>
         </div>
-        <div class="text-brand font-bold shrink-0">${task.coins} 金幣</div>
+        <div class="text-brand font-bold shrink-0">${task.coins} 點</div>
       </div>`;
     });
     html += '</div>';
@@ -582,7 +582,7 @@ function buildMultiHtml(tasks, todayC) {
     const pendingCnt  = allToday.filter(c => c.status === 'pending').length;
     const rejectedCnt = allToday.filter(c => c.status === 'rejected').length;
     let statusParts = [];
-    if (approvedCnt) statusParts.push(`<span class="text-green-500">已獲 +${approvedCnt * task.coins} 金幣</span>`);
+    if (approvedCnt) statusParts.push(`<span class="text-green-500">已獲 +${approvedCnt * task.coins} 點</span>`);
     if (pendingCnt)  statusParts.push(`<span class="text-orange-400">${pendingCnt} 件待審核 <button onclick="cancelLastTask(${task.id})" class="text-gray-300 underline ml-1">取消</button></span>`);
     if (rejectedCnt) statusParts.push(`<span class="text-red-400">${rejectedCnt} 件駁回</span>`);
     html += `<div class="flex items-center p-4 gap-4">
@@ -623,7 +623,7 @@ function buildWeekendHtml(tasks, todayC) {
     const diffDot = task.difficulty ? (DIFF_INFO[task.difficulty]?.dot || '') : '';
     let status = '';
     if (comp?.status === 'pending')  status = `<span class="text-xs text-orange-400">等待爸媽審核中...</span><button onclick="cancelTask(${task.id})" class="text-xs text-gray-300 underline ml-2">取消</button>`;
-    if (comp?.status === 'approved') status = `<span class="text-xs text-green-500">已獲得 +${comp.coins} 點</span>`;
+    if (comp?.status === 'approved') status = `<span class="text-xs text-green-500">已獲得 +${task.coins} 點</span>`;
     if (comp?.status === 'rejected') status = `<span class="text-xs text-red-400">爸媽駁回</span>`;
     html += `<div class="flex items-center p-4 gap-4">
       <div class="${boxCls}" onclick="${!comp ? `submitTask(${task.id})` : ''}">
