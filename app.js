@@ -8,51 +8,101 @@ const S = {
 const DAY_NAMES = ['日','一','二','三','四','五','六'];
 const DAY_FULL  = ['週日','週一','週二','週三','週四','週五','週六'];
 
+// ── 等級里程碑 ─────────────────────────────────────────────────
+const TIERS = [
+  { pts:0,   label:'勤勞小芽', emoji:'🌱', desc:'萬事起頭難，你做到了！',     bg:'bg-green-50',  text:'text-green-700'  },
+  { pts:50,  label:'習慣新星', emoji:'⭐', desc:'好習慣正在養成中，加油！',    bg:'bg-yellow-50', text:'text-yellow-700' },
+  { pts:100, label:'努力小將', emoji:'🥉', desc:'持之以恆，超棒的！',          bg:'bg-orange-50', text:'text-orange-700' },
+  { pts:200, label:'認真達人', emoji:'🥈', desc:'認真是最好的天賦！',          bg:'bg-blue-50',   text:'text-blue-700'   },
+  { pts:350, label:'習慣大師', emoji:'🥇', desc:'你已是大家的榜樣！',          bg:'bg-purple-50', text:'text-purple-700' },
+  { pts:500, label:'傳說勇者', emoji:'👑', desc:'無人能及的習慣勇者！',         bg:'bg-red-50',    text:'text-red-700'    },
+];
+
+// ── 任務難度說明 ───────────────────────────────────────────────
+const DIFF_INFO = {
+  simple:  { label:'簡單', dot:'🟢', time:'5 分鐘內',     pts:5  },
+  medium:  { label:'中等', dot:'🟡', time:'15–30 分鐘',   pts:15 },
+  hard:    { label:'困難', dot:'🔴', time:'30 分鐘以上',  pts:30 },
+  special: { label:'特殊', dot:'⭐', time:'超越日常',     pts:50 },
+};
+
+// ── 預設任務清單 ───────────────────────────────────────────────
+function getDefaultTasks() {
+  return [
+    // ── 每日日常（全部小孩）─────────────────────────────
+    { id:1,  name:'洗自己的便當盒',               category:'每日日常', coins:5,  emoji:'🍱', daysOfWeek:[], type:'once',   targetGrade:'all', difficulty:'simple'  },
+    { id:2,  name:'完成每日作業（含連絡本簽名）',  category:'每日日常', coins:15, emoji:'📚', daysOfWeek:[], type:'once',   targetGrade:'all', difficulty:'medium'  },
+    { id:3,  name:'9點前洗澡',                    category:'每日日常', coins:5,  emoji:'🚿', daysOfWeek:[], type:'once',   targetGrade:'all', difficulty:'simple'  },
+    { id:4,  name:'做一件家事',                   category:'每日日常', coins:10, emoji:'🧹', daysOfWeek:[], type:'once',   targetGrade:'all', difficulty:'simple'  },
+    { id:5,  name:'跟長輩打招呼',                 category:'每日日常', coins:5,  emoji:'🙏', daysOfWeek:[], type:'once',   targetGrade:'all', difficulty:'simple'  },
+    { id:6,  name:'完成英文練習',                 category:'每日日常', coins:15, emoji:'🔤', daysOfWeek:[], type:'once',   targetGrade:'all', difficulty:'medium'  },
+    // ── 低年級專屬 ──────────────────────────────────────
+    { id:7,  name:'完成音樂練習',                 category:'低年級專屬', coins:10, emoji:'🎵', daysOfWeek:[], type:'once',  targetGrade:'low',  difficulty:'simple'  },
+    { id:8,  name:'練習 15 分鐘',                 category:'低年級專屬', coins:15, emoji:'⏱️', daysOfWeek:[], type:'once',  targetGrade:'low',  difficulty:'medium'  },
+    { id:9,  name:'練習 30 分鐘以上',             category:'低年級專屬', coins:30, emoji:'⏰', daysOfWeek:[], type:'once',  targetGrade:'low',  difficulty:'hard'    },
+    { id:10, name:'主動練習（不用提醒）',          category:'低年級專屬', coins:30, emoji:'💪', daysOfWeek:[], type:'once',  targetGrade:'low',  difficulty:'hard'    },
+    // ── 高年級專屬 ──────────────────────────────────────
+    { id:11, name:'主動複習 / 整理筆記',           category:'高年級專屬', coins:30, emoji:'📖', daysOfWeek:[], type:'once',  targetGrade:'high', difficulty:'hard'    },
+    { id:12, name:'協助規劃家庭事務',              category:'高年級專屬', coins:30, emoji:'📋', daysOfWeek:[], type:'once',  targetGrade:'high', difficulty:'hard'    },
+    // ── 運動（可重複）─────────────────────────────────
+    { id:20, name:'跳繩500下',                    category:'運動',     coins:15, emoji:'🪢', daysOfWeek:[], type:'multi',  targetGrade:'all' },
+    // ── 每週挑戰 ────────────────────────────────────────
+    { id:21, name:'本週跳繩5000下',               category:'每週挑戰', coins:50, emoji:'🏅', daysOfWeek:[], type:'weekly', targetGrade:'all', weeklyTarget:10, autoFrom:20 },
+  ];
+}
+
 // ── Init ──────────────────────────────────────────────────────
 function initData() {
-  // 從 v1（單一小孩）升級到 v2（多小孩）時清除舊資料
-  if (S.get('initialized') && !S.get('children')) {
-    localStorage.clear();
-  }
+  // v1 → v2：清除單一小孩的舊資料
+  if (S.get('initialized') && !S.get('children')) { localStorage.clear(); }
+
   if (S.get('initialized')) {
-    // 自動補上第三個小孩
     const children = S.getOrDefault('children', []);
+    // 補上第三個小孩
     if (children.length < 3) {
-      children.push({ id: 3, name: '小勇者三', emoji: '🐼' });
+      children.push({ id: 3, name: '小勇者三', emoji: '🐼', grade: 'low' });
       S.set('children', children);
       const coins = S.getOrDefault('coins', {});
       if (!coins[3]) { coins[3] = 0; S.set('coins', coins); }
     }
-    // 自動補上 type 欄位（舊任務沒有 type）
-    // 自動補上 autoFrom 欄位（task id=8 連結 id=7）
-    const tasks = S.getOrDefault('tasks', []);
-    let updated = false;
-    tasks.forEach(t => {
-      if (!t.type) { t.type = 'once'; updated = true; }
-      if (t.id === 8 && !Object.prototype.hasOwnProperty.call(t, 'autoFrom')) {
-        t.autoFrom = 7; updated = true;
-      }
-    });
-    if (updated) S.set('tasks', tasks);
+
+    // v3 遷移：年級 + 新任務 + 集點卡
+    if (!S.get('data_v3')) {
+      // 為每個小孩補上年級
+      children.forEach(c => { if (!c.grade) c.grade = 'low'; });
+      S.set('children', children);
+
+      // 換成新任務清單
+      S.set('tasks', getDefaultTasks());
+
+      // 初始化集點卡（從既有 approved 完成記錄推算）
+      const comps  = S.getOrDefault('completions', []);
+      const lc     = { 1: 0, 2: 0, 3: 0 };
+      comps.filter(c => c.status === 'approved')
+           .forEach(c => { if (lc[c.childId] !== undefined) lc[c.childId] += (c.coins || 0); });
+      // 若計算值低於目前金幣，取較大值（含未記錄的獎勵）
+      const curCoins = S.getOrDefault('coins', {});
+      [1,2,3].forEach(id => { if (lc[id] < (curCoins[id]||0)) lc[id] = curCoins[id]||0; });
+      S.set('lifetimeCoins', lc);
+
+      // 初始化 lifetimeCoins for new children
+      const coins = S.getOrDefault('coins', {});
+      if (!coins[3]) { coins[3] = 0; S.set('coins', coins); }
+
+      S.set('data_v3', true);
+    }
     return;
   }
 
+  // ── 全新安裝 ──────────────────────────────────────────────
   S.set('children', [
-    { id: 1, name: '小勇者一', emoji: '🦁' },
-    { id: 2, name: '小勇者二', emoji: '🐯' },
-    { id: 3, name: '小勇者三', emoji: '🐼' }
+    { id: 1, name: '小勇者一', emoji: '🦁', grade: 'low' },
+    { id: 2, name: '小勇者二', emoji: '🐯', grade: 'low' },
+    { id: 3, name: '小勇者三', emoji: '🐼', grade: 'low' }
   ]);
-  S.set('coins', { 1: 0, 2: 0, 3: 0 });
-  S.set('tasks', [
-    { id:1, name:'整理書包',      category:'學習任務', coins:10, emoji:'🎒', daysOfWeek:[], type:'once'   },
-    { id:2, name:'完成當天作業',  category:'學習任務', coins:30, emoji:'📚', daysOfWeek:[], type:'once'   },
-    { id:3, name:'摺棉被整理床',  category:'生活雜事', coins:10, emoji:'🛏️', daysOfWeek:[], type:'once'   },
-    { id:4, name:'幫忙洗碗',      category:'生活雜事', coins:20, emoji:'🍽️', daysOfWeek:[], type:'once'   },
-    { id:5, name:'倒垃圾',        category:'生活雜事', coins:20, emoji:'🗑️', daysOfWeek:[6], type:'once'  },
-    { id:6, name:'練習才藝30分鐘',category:'學習任務', coins:20, emoji:'🎵', daysOfWeek:[], type:'once'   },
-    { id:7, name:'跳繩500下',     category:'運動',     coins:15, emoji:'🪢', daysOfWeek:[], type:'multi'  },
-    { id:8, name:'本週跳繩5000下',category:'每週挑戰', coins:50, emoji:'🏅', daysOfWeek:[], type:'weekly', weeklyTarget:10, autoFrom:7 },
-  ]);
+  S.set('coins',         { 1: 0, 2: 0, 3: 0 });
+  S.set('lifetimeCoins', { 1: 0, 2: 0, 3: 0 });
+  S.set('tasks', getDefaultTasks());
   S.set('rewards', [
     { id:1, name:'手搖飲一杯',   desc:'任選，限50元內', coins:80,  emoji:'🧋' },
     { id:2, name:'延後睡覺1小時',desc:'限週末使用',     coins:100, emoji:'🌙' },
@@ -65,11 +115,12 @@ function initData() {
     { id:3, emoji:'⭐', text:'每天進步一點點，你就是最棒的！' },
     { id:4, emoji:'😊', text:'微笑是免費的禮物，多給別人一個！' },
   ]);
-  S.set('completions', []);
-  S.set('redeemedRewards', []);
-  S.set('checkIns', {});
-  S.set('lastBonusStreak', {});
-  S.set('initialized', true);
+  S.set('completions',    []);
+  S.set('redeemedRewards',[]);
+  S.set('checkIns',       {});
+  S.set('lastBonusStreak',{});
+  S.set('data_v3',        true);
+  S.set('initialized',    true);
 }
 
 // ── Page routing ──────────────────────────────────────────────
@@ -82,12 +133,17 @@ function showPage(id) {
 // ── Welcome ───────────────────────────────────────────────────
 function renderWelcome() {
   const children = S.getOrDefault('children', []);
-  const html = children.map(c =>
-    `<button onclick="goToChildLogin(${c.id})" class="w-full bg-white rounded-2xl p-5 text-left shadow-sm border border-gray-100 hover:shadow-md transition">
-       <div class="font-bold text-lg">${c.emoji} ${c.name}</div>
+  const html = children.map(c => {
+    const gl = c.grade === 'high' ? '🎓 高年級' : '🌱 低年級';
+    const gc = c.grade === 'high' ? 'bg-purple-100 text-purple-600' : 'bg-green-100 text-green-600';
+    return `<button onclick="goToChildLogin(${c.id})" class="w-full bg-white rounded-2xl p-5 text-left shadow-sm border border-gray-100 hover:shadow-md transition">
+       <div class="flex items-center justify-between">
+         <div class="font-bold text-lg">${c.emoji} ${c.name}</div>
+         <span class="text-xs px-2 py-0.5 rounded-full ${gc}">${gl}</span>
+       </div>
        <div class="text-gray-400 text-sm mt-1">完成任務、獲得金幣</div>
-     </button>`
-  ).join('') +
+     </button>`;
+  }).join('') +
   `<button onclick="goToParentLogin()" class="w-full bg-white rounded-2xl p-5 text-left shadow-sm border border-gray-100 hover:shadow-md transition">
      <div class="font-bold text-lg">🐻 爸爸 / 媽媽</div>
      <div class="text-gray-400 text-sm mt-1">養成管理、給予獎勵</div>
@@ -101,14 +157,17 @@ function saveSetup() {
   const c1n = document.getElementById('setup-child1-name').value.trim() || '小勇者一';
   const c2n = document.getElementById('setup-child2-name').value.trim() || '小勇者二';
   const c3n = document.getElementById('setup-child3-name').value.trim() || '小勇者三';
+  const c1g = document.querySelector('input[name="child1-grade"]:checked')?.value || 'low';
+  const c2g = document.querySelector('input[name="child2-grade"]:checked')?.value || 'low';
+  const c3g = document.querySelector('input[name="child3-grade"]:checked')?.value || 'low';
 
   if (p.length < 4) { alert('請輸入4位爸媽密碼'); return; }
 
   S.set('pins', { parent: p });
   const children = S.getOrDefault('children', []);
-  if (children[0]) children[0].name = c1n;
-  if (children[1]) children[1].name = c2n;
-  if (children[2]) children[2].name = c3n;
+  if (children[0]) { children[0].name = c1n; children[0].grade = c1g; }
+  if (children[1]) { children[1].name = c2n; children[1].grade = c2g; }
+  if (children[2]) { children[2].name = c3n; children[2].grade = c3g; }
   S.set('children', children);
 
   renderWelcome();
@@ -162,11 +221,14 @@ function logout() {
 // ── Helpers ───────────────────────────────────────────────────
 function today() { return new Date().toISOString().slice(0, 10); }
 
-function getActiveTasks() {
+// grade 可傳入 'low'/'high'（小孩頁面），不傳則顯示全部（爸媽頁面）
+function getActiveTasks(grade) {
   const dow = new Date().getDay();
-  return S.getOrDefault('tasks', []).filter(t =>
-    !t.daysOfWeek || t.daysOfWeek.length === 0 || t.daysOfWeek.includes(dow)
-  );
+  return S.getOrDefault('tasks', []).filter(t => {
+    const dayOk   = !t.daysOfWeek || t.daysOfWeek.length === 0 || t.daysOfWeek.includes(dow);
+    const gradeOk = !grade || !t.targetGrade || t.targetGrade === 'all' || t.targetGrade === grade;
+    return dayOk && gradeOk;
+  });
 }
 
 function getChildCoins(id) {
@@ -174,10 +236,21 @@ function getChildCoins(id) {
   return c[id] || 0;
 }
 
-function setChildCoins(id, amount) {
+function setChildCoins(id, newAmount) {
   const c = S.getOrDefault('coins', {});
-  c[id] = amount;
+  const oldAmount = c[id] || 0;
+  c[id] = newAmount;
   S.set('coins', c);
+  // 只有加分才累計終身點數
+  if (newAmount > oldAmount) {
+    const lc = S.getOrDefault('lifetimeCoins', {});
+    lc[id] = (lc[id] || 0) + (newAmount - oldAmount);
+    S.set('lifetimeCoins', lc);
+  }
+}
+
+function getLifetimeCoins(id) {
+  return S.getOrDefault('lifetimeCoins', {})[id] || 0;
 }
 
 function getChildName(id) {
@@ -318,8 +391,15 @@ function renderChildMain() {
   const id    = window._currentChildId;
   const child = S.getOrDefault('children', []).find(c => c.id === id);
   document.getElementById('child-name-display').textContent = child?.name || '小勇者';
+  // 顯示年級標籤
+  const gradeEl = document.getElementById('child-grade-display');
+  if (gradeEl) {
+    gradeEl.textContent = child?.grade === 'high' ? '🎓 高年級' : '🌱 低年級';
+    gradeEl.className   = `text-xs px-2 py-0.5 rounded-full ${child?.grade === 'high' ? 'bg-purple-100 text-purple-600' : 'bg-green-100 text-green-600'}`;
+  }
   updateChildHeader();
   renderChildTasks();
+  renderStampCard();
   renderChildRewards();
   renderChildMyRewards();
   renderChildHistory();
@@ -327,8 +407,9 @@ function renderChildMain() {
 }
 
 function updateChildHeader() {
-  const id          = window._currentChildId;
-  const activeTasks = getActiveTasks();
+  const id    = window._currentChildId;
+  const child = S.getOrDefault('children', []).find(c => c.id === id);
+  const activeTasks = getActiveTasks(child?.grade);
   const approved    = S.getOrDefault('completions', [])
     .filter(c => c.childId === id && c.date === today() && c.status === 'approved').length;
   const total = activeTasks.length;
@@ -353,7 +434,8 @@ function rotateBanner() {
 
 function renderChildTasks() {
   const id          = window._currentChildId;
-  const activeTasks = getActiveTasks();
+  const child       = S.getOrDefault('children', []).find(c => c.id === id);
+  const activeTasks = getActiveTasks(child?.grade);
   const todayC      = S.getOrDefault('completions', []).filter(c => c.childId === id && c.date === today());
 
   const onceTasks   = activeTasks.filter(t => (t.type || 'once') === 'once');
@@ -559,6 +641,91 @@ function cancelLastTask(taskId) {
   updateChildHeader();
 }
 
+// ── 集點卡 ────────────────────────────────────────────────────
+function renderStampCard() {
+  const id       = window._currentChildId;
+  const lifetime = getLifetimeCoins(id);
+
+  // 找目前等級
+  let tierIdx = 0;
+  for (let i = TIERS.length - 1; i >= 0; i--) {
+    if (lifetime >= TIERS[i].pts) { tierIdx = i; break; }
+  }
+  const cur  = TIERS[tierIdx];
+  const next = TIERS[tierIdx + 1];
+
+  // 往下一等級的進度條
+  const progressHtml = next
+    ? (() => {
+        const earned = lifetime - cur.pts;
+        const need   = next.pts - cur.pts;
+        const pct    = Math.min(100, Math.round(earned / need * 100));
+        return `<div class="mt-3">
+          <div class="flex justify-between text-xs text-gray-500 mb-1">
+            <span>距離 ${next.emoji} ${next.label}</span>
+            <span class="font-bold text-brand">還差 ${next.pts - lifetime} 點</span>
+          </div>
+          <div class="h-3 bg-white/60 rounded-full overflow-hidden">
+            <div class="h-3 bg-white rounded-full transition-all" style="width:${pct}%;opacity:0.8"></div>
+          </div>
+        </div>`;
+      })()
+    : `<div class="text-center text-sm font-bold mt-3">🎊 已達最高傳說等級！</div>`;
+
+  // 里程碑列表
+  const milestones = TIERS.map((t, i) => {
+    const reached = lifetime >= t.pts;
+    const isCur   = i === tierIdx;
+    return `<div class="flex items-center gap-3 py-2.5 ${i < TIERS.length-1 ? 'border-b border-gray-50' : ''}">
+      <div class="text-2xl ${reached ? '' : 'grayscale opacity-30'}">${t.emoji}</div>
+      <div class="flex-1">
+        <div class="font-bold text-sm ${reached ? 'text-gray-700' : 'text-gray-300'}">${t.label}</div>
+        <div class="text-xs ${reached ? 'text-gray-400' : 'text-gray-200'}">${t.pts === 0 ? '起點' : `累積 ${t.pts} 點解鎖`}</div>
+      </div>
+      <div>
+        ${isCur
+          ? '<span class="text-xs bg-brand text-white px-2 py-0.5 rounded-full font-bold">現在</span>'
+          : reached
+            ? '<span class="text-xs text-green-500 font-bold">✅ 達成</span>'
+            : `<span class="text-xs text-gray-300">${t.pts} 點</span>`
+        }
+      </div>
+    </div>`;
+  }).join('');
+
+  // 難度說明
+  const diffCards = Object.entries(DIFF_INFO).map(([, d]) =>
+    `<div class="flex items-center gap-3 p-3 border-b border-gray-50 last:border-0">
+      <div class="text-2xl">${d.dot}</div>
+      <div class="flex-1">
+        <div class="font-bold text-sm">${d.label}任務</div>
+        <div class="text-xs text-gray-400">${d.time}</div>
+      </div>
+      <div class="font-bold text-brand text-base">＋ ${d.pts} 點</div>
+    </div>`
+  ).join('');
+
+  document.getElementById('child-tab-stamps').innerHTML = `
+    <div class="${cur.bg} rounded-2xl p-5 mb-4">
+      <div class="text-center mb-3">
+        <div class="text-5xl mb-1">${cur.emoji}</div>
+        <div class="font-bold text-xl ${cur.text}">${cur.label}</div>
+        <div class="text-xs text-gray-500 mt-1">${cur.desc}</div>
+      </div>
+      <div class="text-center">
+        <span class="text-4xl font-bold text-gray-700">${lifetime}</span>
+        <span class="text-gray-400 ml-1">累積點數</span>
+      </div>
+      ${progressHtml}
+    </div>
+
+    <div class="text-sm font-semibold text-gray-500 mb-2">📊 點數賺取說明</div>
+    <div class="bg-white rounded-2xl shadow-sm mb-4">${diffCards}</div>
+
+    <div class="text-sm font-semibold text-gray-500 mb-2">🗺️ 成就里程碑</div>
+    <div class="bg-white rounded-2xl shadow-sm p-4">${milestones}</div>`;
+}
+
 function renderChildRewards() {
   const id      = window._currentChildId;
   const coins   = getChildCoins(id);
@@ -715,6 +882,8 @@ function switchChildTab(tab, btn) {
   document.getElementById(`child-tab-${tab}`).classList.remove('hidden');
   document.querySelectorAll('#page-child-main .tab-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
+  // 切換到集點卡時重新渲染（確保資料最新）
+  if (tab === 'stamps') renderStampCard();
 }
 
 // ── Parent: main ──────────────────────────────────────────────
@@ -743,13 +912,21 @@ function renderParentOverview() {
 
   const childCards = children.map(child => {
     const coins       = getChildCoins(child.id);
+    const childTasks  = getActiveTasks(child.grade); // 按年級過濾
     const approved    = completions.filter(c => c.childId===child.id && c.date===today() && c.status==='approved').length;
     const childPend   = completions.filter(c => c.childId===child.id && c.status==='pending').length;
+    const gl = child.grade === 'high' ? '🎓 高年級' : '🌱 低年級';
+    const gc = child.grade === 'high' ? 'bg-purple-100 text-purple-600' : 'bg-green-100 text-green-600';
     return `<div class="bg-white rounded-2xl shadow-sm p-4">
       <div class="flex items-center gap-2 mb-3">
         <span class="text-2xl">${child.emoji}</span>
-        <span class="font-bold">${child.name}</span>
-        ${childPend ? `<span class="badge">${childPend}</span>` : ''}
+        <div class="flex-1">
+          <div class="flex items-center gap-1">
+            <span class="font-bold">${child.name}</span>
+            ${childPend ? `<span class="badge">${childPend}</span>` : ''}
+          </div>
+          <span class="text-xs px-1.5 py-0.5 rounded-full ${gc}">${gl}</span>
+        </div>
       </div>
       <div class="grid grid-cols-2 gap-2 text-center">
         <div class="bg-yellow-50 rounded-xl p-2">
@@ -757,7 +934,7 @@ function renderParentOverview() {
           <div class="text-xs text-gray-400">金幣</div>
         </div>
         <div class="bg-green-50 rounded-xl p-2">
-          <div class="text-lg font-bold text-green-500">${approved}/${activeTasks.length}</div>
+          <div class="text-lg font-bold text-green-500">${approved}/${childTasks.length}</div>
           <div class="text-xs text-gray-400">今日完成</div>
         </div>
       </div>
@@ -937,8 +1114,39 @@ function renderParentTasks() {
       <input id="new-task-emoji" placeholder="Emoji（如 📚）" value="⭐" class="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-brand">
       <input id="new-task-coins" type="number" placeholder="金幣數量" value="10" class="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-brand">
       <select id="new-task-category" class="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-brand">
-        <option>學習任務</option><option>生活雜事</option><option>運動</option><option>每週挑戰</option>
+        <option>每日日常</option><option>低年級專屬</option><option>高年級專屬</option><option>運動</option><option>每週挑戰</option>
       </select>
+      <div>
+        <div class="text-sm text-gray-400 mb-2">適用年級</div>
+        <div class="grid grid-cols-3 gap-2">
+          <label class="flex flex-col items-center p-2 border-2 border-gray-200 rounded-xl cursor-pointer has-[:checked]:border-brand has-[:checked]:bg-brand-light text-center">
+            <input type="radio" name="new-task-grade" value="all" checked class="hidden"><span class="text-base">👨‍👩‍👧</span><span class="text-xs font-bold mt-0.5">全部</span>
+          </label>
+          <label class="flex flex-col items-center p-2 border-2 border-gray-200 rounded-xl cursor-pointer has-[:checked]:border-brand has-[:checked]:bg-brand-light text-center">
+            <input type="radio" name="new-task-grade" value="low" class="hidden"><span class="text-base">🌱</span><span class="text-xs font-bold mt-0.5">低年級</span>
+          </label>
+          <label class="flex flex-col items-center p-2 border-2 border-gray-200 rounded-xl cursor-pointer has-[:checked]:border-brand has-[:checked]:bg-brand-light text-center">
+            <input type="radio" name="new-task-grade" value="high" class="hidden"><span class="text-base">🎓</span><span class="text-xs font-bold mt-0.5">高年級</span>
+          </label>
+        </div>
+      </div>
+      <div>
+        <div class="text-sm text-gray-400 mb-2">難度（選後自動填點數）</div>
+        <div class="grid grid-cols-2 gap-2">
+          <label class="flex items-center gap-2 p-2.5 border-2 border-gray-200 rounded-xl cursor-pointer has-[:checked]:border-brand has-[:checked]:bg-brand-light">
+            <input type="radio" name="new-task-difficulty" value="simple" class="hidden"><span>🟢</span><div><div class="text-xs font-bold">簡單</div><div class="text-xs text-gray-400">5分內・5點</div></div>
+          </label>
+          <label class="flex items-center gap-2 p-2.5 border-2 border-gray-200 rounded-xl cursor-pointer has-[:checked]:border-brand has-[:checked]:bg-brand-light">
+            <input type="radio" name="new-task-difficulty" value="medium" class="hidden"><span>🟡</span><div><div class="text-xs font-bold">中等</div><div class="text-xs text-gray-400">15–30分・15點</div></div>
+          </label>
+          <label class="flex items-center gap-2 p-2.5 border-2 border-gray-200 rounded-xl cursor-pointer has-[:checked]:border-brand has-[:checked]:bg-brand-light">
+            <input type="radio" name="new-task-difficulty" value="hard" class="hidden"><span>🔴</span><div><div class="text-xs font-bold">困難</div><div class="text-xs text-gray-400">30分以上・30點</div></div>
+          </label>
+          <label class="flex items-center gap-2 p-2.5 border-2 border-gray-200 rounded-xl cursor-pointer has-[:checked]:border-brand has-[:checked]:bg-brand-light">
+            <input type="radio" name="new-task-difficulty" value="special" class="hidden"><span>⭐</span><div><div class="text-xs font-bold">特殊貢獻</div><div class="text-xs text-gray-400">超越日常・50點</div></div>
+          </label>
+        </div>
+      </div>
       <div>
         <div class="text-sm text-gray-400 mb-2">任務類型</div>
         <div class="grid grid-cols-3 gap-2">
@@ -971,12 +1179,14 @@ function renderParentTasks() {
     html += `<h3 class="text-sm font-semibold text-gray-500 mb-2 mt-4">${cat}</h3>
     <div class="bg-white rounded-2xl shadow-sm divide-y divide-gray-50 mb-3">`;
     list.forEach(task => {
-      const dayLabel  = task.daysOfWeek?.length ? task.daysOfWeek.map(d=>DAY_FULL[d]).join('、') : '每天';
-      const typeLabel = task.type==='multi' ? '🔁 多次性' : task.type==='weekly' ? `📅 每週×${task.weeklyTarget||1}` : '1️⃣ 一次性';
+      const dayLabel   = task.daysOfWeek?.length ? task.daysOfWeek.map(d=>DAY_FULL[d]).join('、') : '每天';
+      const typeLabel  = task.type==='multi' ? '🔁 重複' : task.type==='weekly' ? `📅 週×${task.weeklyTarget||1}` : '1️⃣ 一次';
+      const gradeLabel = task.targetGrade==='low' ? '🌱低' : task.targetGrade==='high' ? '🎓高' : '全';
+      const diffDot    = task.difficulty ? (DIFF_INFO[task.difficulty]?.dot || '') : '';
       html += `<div class="flex items-center p-4 gap-3">
         <div class="text-2xl">${task.emoji}</div>
         <div class="flex-1"><div class="font-medium">${task.name}</div>
-        <div class="text-xs text-gray-400">${task.coins} 金幣・${dayLabel}・${typeLabel}</div></div>
+        <div class="text-xs text-gray-400">${task.coins}點・${dayLabel}・${typeLabel}・${gradeLabel}${diffDot ? `・${diffDot}` : ''}</div></div>
         <button onclick="deleteTask(${task.id})" class="text-red-300 text-sm px-3 py-1 hover:text-red-500">刪除</button>
       </div>`;
     });
@@ -995,6 +1205,12 @@ document.addEventListener('change', e => {
     const field = document.getElementById('weekly-target-field');
     if (field) field.classList.toggle('hidden', e.target.value !== 'weekly');
   }
+  // 選難度後自動建議點數
+  if (e.target.name === 'new-task-difficulty') {
+    const coinMap = { simple:5, medium:15, hard:30, special:50 };
+    const coinsEl = document.getElementById('new-task-coins');
+    if (coinsEl && coinMap[e.target.value] !== undefined) coinsEl.value = coinMap[e.target.value];
+  }
 });
 
 function addTask() {
@@ -1004,10 +1220,13 @@ function addTask() {
   const category     = document.getElementById('new-task-category').value;
   const days         = [...document.querySelectorAll('input[name="new-task-days"]:checked')].map(el=>+el.value);
   const type         = document.querySelector('input[name="new-task-type"]:checked')?.value || 'once';
+  const targetGrade  = document.querySelector('input[name="new-task-grade"]:checked')?.value || 'all';
+  const difficulty   = document.querySelector('input[name="new-task-difficulty"]:checked')?.value || '';
   const weeklyTarget = type === 'weekly' ? (parseInt(document.getElementById('new-task-weekly-target').value) || 5) : undefined;
   if (!name) { alert('請輸入任務名稱'); return; }
   const tasks = S.getOrDefault('tasks', []);
-  const task = { id: Date.now(), name, emoji, coins, category, daysOfWeek: days, type };
+  const task  = { id: Date.now(), name, emoji, coins, category, daysOfWeek: days, type, targetGrade };
+  if (difficulty)   task.difficulty   = difficulty;
   if (weeklyTarget) task.weeklyTarget = weeklyTarget;
   tasks.push(task);
   S.set('tasks', tasks);
