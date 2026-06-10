@@ -26,6 +26,43 @@ const DIFF_INFO = {
   special: { label:'特殊', dot:'⭐', time:'超越日常',     pts:4 },
 };
 
+// ── 才藝練習週獎勵 ─────────────────────────────────────────────
+function getPracticeCountThisWeek(childId) {
+  const tasks      = S.getOrDefault('tasks', []);
+  const practiceIds = tasks.filter(t => t.isPractice).map(t => t.id);
+  if (!practiceIds.length) return 0;
+  const ws  = getWeekStart();
+  const wed = new Date(ws); wed.setDate(wed.getDate() + 6);
+  const we  = wed.toISOString().slice(0, 10);
+  return S.getOrDefault('completions', []).filter(c =>
+    practiceIds.includes(c.taskId) && c.childId === childId &&
+    c.status === 'approved' && c.date >= ws && c.date <= we
+  ).length;
+}
+
+function checkAndAwardPracticeBonus(childId) {
+  if (getPracticeCountThisWeek(childId) < 5) return false;
+  const key = `pb_${childId}_${getWeekStart()}`;
+  if (S.get(key)) return false;
+  setChildCoins(childId, getChildCoins(childId) + 3);
+  S.set(key, true);
+  return true;
+}
+
+// ── 預設獎勵清單 ───────────────────────────────────────────────
+function getDefaultRewards() {
+  return [
+    // 遊戲時間兌換
+    { id:1, name:'遊戲 15 分鐘',    desc:'平日使用，當日有效不累積',    coins:5,  emoji:'🎮', category:'遊戲時間' },
+    { id:2, name:'遊戲 60 分鐘',    desc:'平日或週末均可，整一小時',    coins:15, emoji:'🕹️', category:'遊戲時間' },
+    { id:3, name:'週末加碼 2 小時', desc:'僅限週末，需提前一天預約',    coins:30, emoji:'⏱️', category:'遊戲時間' },
+    // 其他獎勵
+    { id:4, name:'選週末外食地點',  desc:'全家一起享用',                coins:20, emoji:'🍜', category:'其他獎勵' },
+    { id:5, name:'選假日活動',      desc:'公園、電影、DIY 等',          coins:40, emoji:'🎡', category:'其他獎勵' },
+    { id:6, name:'大獎勵',          desc:'玩具、書、特殊體驗',          coins:80, emoji:'🎁', category:'其他獎勵' },
+  ];
+}
+
 // ── 預設任務清單 ───────────────────────────────────────────────
 function getDefaultTasks() {
   return [
@@ -37,10 +74,10 @@ function getDefaultTasks() {
     { id:5,  name:'跟長輩打招呼',                 category:'每日任務', coins:1, emoji:'🙏', daysOfWeek:[], type:'once',   targetGrade:'all', difficulty:'simple'  },
     { id:6,  name:'完成英文練習',                 category:'每日任務', coins:2, emoji:'🔤', daysOfWeek:[], type:'once',   targetGrade:'all', difficulty:'medium'  },
     // ── 低年級專屬 ──────────────────────────────────────
-    { id:7,  name:'完成音樂練習',                 category:'低年級專屬', coins:1, emoji:'🎵', daysOfWeek:[], type:'once',  targetGrade:'low',  difficulty:'simple'  },
-    { id:8,  name:'練習 15 分鐘',                 category:'低年級專屬', coins:2, emoji:'⏱️', daysOfWeek:[], type:'once',  targetGrade:'low',  difficulty:'medium'  },
-    { id:9,  name:'練習 30 分鐘以上',             category:'低年級專屬', coins:3, emoji:'⏰', daysOfWeek:[], type:'once',  targetGrade:'low',  difficulty:'hard'    },
-    { id:10, name:'主動練習（不用提醒）',          category:'低年級專屬', coins:3, emoji:'💪', daysOfWeek:[], type:'once',  targetGrade:'low',  difficulty:'hard'    },
+    { id:7,  name:'完成音樂練習',                 category:'低年級專屬', coins:1, emoji:'🎵', daysOfWeek:[], type:'once',  targetGrade:'low',  difficulty:'simple', isPractice:true },
+    { id:8,  name:'練習 15 分鐘',                 category:'低年級專屬', coins:2, emoji:'⏱️', daysOfWeek:[], type:'once',  targetGrade:'low',  difficulty:'medium', isPractice:true },
+    { id:9,  name:'練習 30 分鐘以上',             category:'低年級專屬', coins:3, emoji:'⏰', daysOfWeek:[], type:'once',  targetGrade:'low',  difficulty:'hard',   isPractice:true },
+    { id:10, name:'主動練習（不用提醒）',          category:'低年級專屬', coins:3, emoji:'💪', daysOfWeek:[], type:'once',  targetGrade:'low',  difficulty:'hard',   isPractice:true },
     // ── 高年級專屬 ──────────────────────────────────────
     { id:11, name:'主動複習 / 整理筆記',           category:'高年級專屬', coins:3, emoji:'📖', daysOfWeek:[], type:'once',  targetGrade:'high', difficulty:'hard'    },
     { id:12, name:'協助規劃家庭事務',              category:'高年級專屬', coins:3, emoji:'📋', daysOfWeek:[], type:'once',  targetGrade:'high', difficulty:'hard'    },
@@ -126,6 +163,18 @@ function initData() {
       S.set('tasks', tasks);
       S.set('data_v5', true);
     }
+
+    // v6 遷移：更新獎勵清單 + 標記才藝練習任務
+    if (!S.get('data_v6')) {
+      S.set('rewards', getDefaultRewards());
+      const tasks = S.getOrDefault('tasks', []);
+      [7, 8, 9, 10].forEach(pid => {
+        const t = tasks.find(x => x.id === pid);
+        if (t) t.isPractice = true;
+      });
+      S.set('tasks', tasks);
+      S.set('data_v6', true);
+    }
     return;
   }
 
@@ -138,12 +187,7 @@ function initData() {
   S.set('coins',         { 1: 0, 2: 0, 3: 0 });
   S.set('lifetimeCoins', { 1: 0, 2: 0, 3: 0 });
   S.set('tasks', getDefaultTasks());
-  S.set('rewards', [
-    { id:1, name:'手搖飲一杯',   desc:'任選，限50元內', coins:80,  emoji:'🧋' },
-    { id:2, name:'延後睡覺1小時',desc:'限週末使用',     coins:100, emoji:'🌙' },
-    { id:3, name:'選一部電影',   desc:'家庭電影夜',     coins:120, emoji:'🎬' },
-    { id:4, name:'遊樂場半天',   desc:'假日出遊',       coins:300, emoji:'🎡' },
-  ]);
+  S.set('rewards', getDefaultRewards());
   S.set('messages', [
     { id:1, emoji:'💬', text:'今天記得說好話，讓別人開心！' },
     { id:2, emoji:'🙏', text:'受到別人幫助時，要記得說謝謝～' },
@@ -157,6 +201,7 @@ function initData() {
   S.set('data_v3',        true);
   S.set('data_v4',        true);
   S.set('data_v5',        true);
+  S.set('data_v6',        true);
   S.set('initialized',    true);
 }
 
@@ -838,27 +883,60 @@ function renderChildRewards() {
   const coins   = getChildCoins(id);
   const rewards = S.getOrDefault('rewards', []);
 
-  let html = `<div class="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 mb-5 flex justify-between items-center">
-    <div><div class="text-xs text-yellow-600 mb-1">目前金幣</div>
-    <div class="text-3xl font-bold text-yellow-500">${coins} 💰</div></div>
-    <div class="text-xs text-gray-400 text-right">完成任務<br>累積更多</div>
-  </div>
-  <div class="text-sm font-semibold text-gray-500 mb-3">國庫兌換中心</div>
-  <div class="bg-white rounded-2xl shadow-sm divide-y divide-gray-50">`;
-
-  rewards.forEach(r => {
+  const card = r => {
     const ok = coins >= r.coins;
-    html += `<div class="flex items-center p-4 gap-3">
+    return `<div class="flex items-center p-4 gap-3">
       <div class="text-3xl">${r.emoji}</div>
       <div class="flex-1">
         <div class="font-medium">${r.name}</div>
-        <div class="text-xs text-gray-400">${r.coins} 金幣・${r.desc}</div>
+        <div class="text-xs text-gray-400">${r.coins} 點・${r.desc}</div>
       </div>
       <button onclick="redeemReward(${r.id})"
-        class="px-4 py-2 rounded-xl text-sm font-bold ${ok ? 'bg-brand text-white' : 'bg-gray-100 text-gray-300 cursor-not-allowed'}">兌換</button>
+        class="px-3 py-2 rounded-xl text-sm font-bold shrink-0 ${ok ? 'bg-brand text-white' : 'bg-gray-100 text-gray-300 cursor-not-allowed'}">兌換</button>
     </div>`;
-  });
-  html += '</div>';
+  };
+
+  const gameRewards  = rewards.filter(r => r.category === '遊戲時間');
+  const otherRewards = rewards.filter(r => r.category !== '遊戲時間');
+
+  // 才藝練習週獎勵狀態
+  const practiceCount   = getPracticeCountThisWeek(id);
+  const practiceAwarded = !!S.get(`pb_${id}_${getWeekStart()}`);
+  const practicePct     = Math.min(100, Math.round(practiceCount / 5 * 100));
+
+  let html = `
+  <div class="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 mb-4 flex justify-between items-center">
+    <div>
+      <div class="text-xs text-yellow-600 mb-1">目前點數</div>
+      <div class="text-3xl font-bold text-yellow-500">${coins} 💰</div>
+    </div>
+    <div class="text-xs text-gray-400 text-right">完成任務<br>累積更多</div>
+  </div>
+
+  <div class="text-sm font-semibold text-gray-500 mb-2">🎮 遊戲時間兌換</div>
+  <div class="bg-white rounded-2xl shadow-sm divide-y divide-gray-50 mb-4">
+    ${gameRewards.length ? gameRewards.map(card).join('') : '<p class="text-center text-gray-300 py-6 text-sm">暫無遊戲時間獎勵</p>'}
+  </div>
+
+  <div class="text-sm font-semibold text-gray-500 mb-2">🎁 其他獎勵</div>
+  <div class="bg-white rounded-2xl shadow-sm divide-y divide-gray-50 mb-4">
+    ${otherRewards.length ? otherRewards.map(card).join('') : '<p class="text-center text-gray-300 py-6 text-sm">暫無其他獎勵</p>'}
+  </div>
+
+  <div class="bg-brand-light rounded-2xl p-4">
+    <div class="flex items-center justify-between mb-1">
+      <div class="font-bold text-sm text-brand">⭐ 才藝練習週獎勵</div>
+      ${practiceAwarded ? '<span class="text-xs text-green-500 font-bold">✅ 本週已領取！</span>' : ''}
+    </div>
+    <div class="text-xs text-gray-600 mb-2">每週練習 5 次以上，額外獲得 <span class="font-bold text-brand">＋3 點</span></div>
+    <div class="flex items-center gap-2">
+      <div class="flex-1 h-2 bg-white/70 rounded-full overflow-hidden">
+        <div class="h-2 bg-brand rounded-full transition-all" style="width:${practicePct}%"></div>
+      </div>
+      <span class="text-xs font-bold ${practiceCount >= 5 ? 'text-green-600' : 'text-brand'}">${practiceCount} / 5 次</span>
+    </div>
+  </div>`;
+
   document.getElementById('child-tab-rewards').innerHTML = html;
 }
 
@@ -1164,12 +1242,16 @@ function approveTask(id) {
     // 每週任務：達標才給金幣
     checkAndAwardWeeklyBonus(c.childId, c.taskId);
   } else {
-    // 一次性 / 多次性：每次准奏即給金幣
-    setChildCoins(c.childId, getChildCoins(c.childId) + c.coins);
+    // 一次性 / 多次性：每次准奏即給點數
+    const curTask = S.getOrDefault('tasks', []).find(t => t.id === c.taskId);
+    const awardCoins = curTask ? curTask.coins : c.coins; // 用任務目前點數
+    setChildCoins(c.childId, getChildCoins(c.childId) + awardCoins);
     // 若有 autoFrom 連結此任務的每週挑戰，自動檢查是否達標
     S.getOrDefault('tasks', [])
       .filter(t => t.type === 'weekly' && t.autoFrom === c.taskId)
       .forEach(wt => checkAndAwardWeeklyBonus(c.childId, wt.id));
+    // 才藝練習週獎勵
+    if (curTask?.isPractice) checkAndAwardPracticeBonus(c.childId);
   }
   renderParentMain();
 }
@@ -1386,6 +1468,14 @@ function deleteTask(id) {
 // ── Parent: rewards ───────────────────────────────────────────
 function renderParentRewardsMgmt() {
   const rewards = S.getOrDefault('rewards', []);
+
+  const byCategory = {};
+  rewards.forEach(r => {
+    const cat = r.category || '其他獎勵';
+    if (!byCategory[cat]) byCategory[cat] = [];
+    byCategory[cat].push(r);
+  });
+
   let html = `<button onclick="showAddRewardForm()" class="w-full bg-brand text-white py-3 rounded-2xl font-bold mb-5">＋ 新增獎勵</button>
   <div id="add-reward-form" class="hidden bg-white rounded-2xl shadow-sm p-5 mb-5">
     <h3 class="font-bold mb-4">新增獎勵</h3>
@@ -1393,20 +1483,41 @@ function renderParentRewardsMgmt() {
       <input id="new-reward-name"  placeholder="獎勵名稱" class="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-brand">
       <input id="new-reward-emoji" placeholder="Emoji（如 🎁）" value="🎁" class="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-brand">
       <input id="new-reward-desc"  placeholder="說明（如：限週末使用）" class="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-brand">
-      <input id="new-reward-coins" type="number" placeholder="所需金幣" value="100" class="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-brand">
+      <input id="new-reward-coins" type="number" placeholder="所需點數" value="10" class="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-brand">
+      <div>
+        <div class="text-sm text-gray-400 mb-2">類別</div>
+        <div class="grid grid-cols-2 gap-2">
+          <label class="flex items-center justify-center gap-1 py-2 border-2 border-gray-200 rounded-xl cursor-pointer has-[:checked]:border-brand has-[:checked]:bg-brand-light text-sm font-bold">
+            <input type="radio" name="new-reward-category" value="遊戲時間" checked class="hidden"> 🎮 遊戲時間
+          </label>
+          <label class="flex items-center justify-center gap-1 py-2 border-2 border-gray-200 rounded-xl cursor-pointer has-[:checked]:border-brand has-[:checked]:bg-brand-light text-sm font-bold">
+            <input type="radio" name="new-reward-category" value="其他獎勵" class="hidden"> 🎁 其他獎勵
+          </label>
+        </div>
+      </div>
       <button onclick="addReward()" class="w-full bg-brand text-white py-3 rounded-xl font-bold">確認新增</button>
     </div>
-  </div>
-  <div class="bg-white rounded-2xl shadow-sm divide-y divide-gray-50">`;
-  rewards.forEach(r => {
-    html += `<div class="flex items-center p-4 gap-3">
-      <div class="text-3xl">${r.emoji}</div>
-      <div class="flex-1"><div class="font-medium">${r.name}</div>
-      <div class="text-xs text-gray-400">${r.coins} 金幣・${r.desc}</div></div>
-      <button onclick="deleteReward(${r.id})" class="text-red-300 text-sm px-3 py-1 hover:text-red-500">刪除</button>
-    </div>`;
+  </div>`;
+
+  const catOrder = ['遊戲時間', '其他獎勵'];
+  const allCats  = [...new Set([...catOrder, ...Object.keys(byCategory)])];
+  allCats.forEach(cat => {
+    const list = byCategory[cat];
+    if (!list?.length) return;
+    const catIcon = cat === '遊戲時間' ? '🎮 ' : '🎁 ';
+    html += `<h3 class="text-sm font-semibold text-gray-500 mb-2 mt-4">${catIcon}${cat}</h3>
+    <div class="bg-white rounded-2xl shadow-sm divide-y divide-gray-50 mb-3">`;
+    list.forEach(r => {
+      html += `<div class="flex items-center p-4 gap-3">
+        <div class="text-3xl">${r.emoji}</div>
+        <div class="flex-1"><div class="font-medium">${r.name}</div>
+        <div class="text-xs text-gray-400">${r.coins} 點・${r.desc}</div></div>
+        <button onclick="deleteReward(${r.id})" class="text-red-300 text-sm px-3 py-1 hover:text-red-500">刪除</button>
+      </div>`;
+    });
+    html += '</div>';
   });
-  html += '</div>';
+
   document.getElementById('parent-tab-rewards-mgmt').innerHTML = html;
 }
 
@@ -1415,13 +1526,14 @@ function showAddRewardForm() {
 }
 
 function addReward() {
-  const name  = document.getElementById('new-reward-name').value.trim();
-  const emoji = document.getElementById('new-reward-emoji').value.trim() || '🎁';
-  const desc  = document.getElementById('new-reward-desc').value.trim();
-  const coins = parseInt(document.getElementById('new-reward-coins').value) || 100;
+  const name     = document.getElementById('new-reward-name').value.trim();
+  const emoji    = document.getElementById('new-reward-emoji').value.trim() || '🎁';
+  const desc     = document.getElementById('new-reward-desc').value.trim();
+  const coins    = parseInt(document.getElementById('new-reward-coins').value) || 10;
+  const category = document.querySelector('input[name="new-reward-category"]:checked')?.value || '其他獎勵';
   if (!name) { alert('請輸入獎勵名稱'); return; }
   const rewards = S.getOrDefault('rewards', []);
-  rewards.push({ id: Date.now(), name, emoji, desc, coins });
+  rewards.push({ id: Date.now(), name, emoji, desc, coins, category });
   S.set('rewards', rewards);
   renderParentRewardsMgmt();
 }
