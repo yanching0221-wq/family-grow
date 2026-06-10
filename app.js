@@ -24,9 +24,15 @@ function initData() {
       if (!coins[3]) { coins[3] = 0; S.set('coins', coins); }
     }
     // 自動補上 type 欄位（舊任務沒有 type）
+    // 自動補上 autoFrom 欄位（task id=8 連結 id=7）
     const tasks = S.getOrDefault('tasks', []);
     let updated = false;
-    tasks.forEach(t => { if (!t.type) { t.type = 'once'; updated = true; } });
+    tasks.forEach(t => {
+      if (!t.type) { t.type = 'once'; updated = true; }
+      if (t.id === 8 && !Object.prototype.hasOwnProperty.call(t, 'autoFrom')) {
+        t.autoFrom = 7; updated = true;
+      }
+    });
     if (updated) S.set('tasks', tasks);
     return;
   }
@@ -45,7 +51,7 @@ function initData() {
     { id:5, name:'倒垃圾',        category:'生活雜事', coins:20, emoji:'🗑️', daysOfWeek:[6], type:'once'  },
     { id:6, name:'練習才藝30分鐘',category:'學習任務', coins:20, emoji:'🎵', daysOfWeek:[], type:'once'   },
     { id:7, name:'跳繩500下',     category:'運動',     coins:15, emoji:'🪢', daysOfWeek:[], type:'multi'  },
-    { id:8, name:'本週跳繩5000下',category:'每週挑戰', coins:50, emoji:'🏅', daysOfWeek:[], type:'weekly', weeklyTarget:10 },
+    { id:8, name:'本週跳繩5000下',category:'每週挑戰', coins:50, emoji:'🏅', daysOfWeek:[], type:'weekly', weeklyTarget:10, autoFrom:7 },
   ]);
   S.set('rewards', [
     { id:1, name:'手搖飲一杯',   desc:'任選，限50元內', coins:80,  emoji:'🧋' },
@@ -187,11 +193,30 @@ function getWeekStart() {
 }
 
 // 本週已審核通過的次數（weekly 任務用）
+// 若任務有 autoFrom，則改計算來源任務在本週的 approved 紀錄數
 function getWeeklyProgress(childId, taskId) {
-  const week = getWeekStart();
-  return S.getOrDefault('completions', [])
-    .filter(c => c.taskId === taskId && c.childId === childId && c.week === week && c.status === 'approved')
-    .length;
+  const task      = S.getOrDefault('tasks', []).find(t => t.id === taskId);
+  const weekStart = getWeekStart();
+  const comps     = S.getOrDefault('completions', []);
+
+  if (task?.autoFrom) {
+    // 計算本週一到週日之間，來源任務的 approved 筆數
+    const weekEndDate = new Date(weekStart);
+    weekEndDate.setDate(weekEndDate.getDate() + 6);
+    const weekEnd = weekEndDate.toISOString().slice(0, 10);
+    return comps.filter(c =>
+      c.taskId === task.autoFrom &&
+      c.childId === childId &&
+      c.status === 'approved' &&
+      c.date >= weekStart &&
+      c.date <= weekEnd
+    ).length;
+  }
+
+  return comps.filter(c =>
+    c.taskId === taskId && c.childId === childId &&
+    c.week === weekStart && c.status === 'approved'
+  ).length;
 }
 
 // 本週是否已領過全勤獎勵
@@ -429,31 +454,44 @@ function buildMultiHtml(tasks, todayC) {
 // ── 每週挑戰任務列表 ───────────────────────────────────────────
 function buildWeeklyHtml(tasks, childId) {
   if (!tasks.length) return '<p class="text-center text-gray-300 py-12">目前沒有每週挑戰</p>';
+  const allTasks = S.getOrDefault('tasks', []);
   let html = '<div class="space-y-3 mt-3">';
   tasks.forEach(task => {
     const progress   = getWeeklyProgress(childId, task.id);
     const target     = task.weeklyTarget || 1;
     const done       = progress >= target;
     const pct        = Math.min(100, Math.round(progress / target * 100));
-    const pendingCnt = S.getOrDefault('completions', [])
-      .filter(c => c.taskId === task.id && c.childId === childId && c.week === getWeekStart() && c.status === 'pending').length;
+    const isAuto     = !!task.autoFrom; // 自動累計（不需手動提交）
+    const pendingCnt = !isAuto
+      ? S.getOrDefault('completions', [])
+          .filter(c => c.taskId === task.id && c.childId === childId && c.week === getWeekStart() && c.status === 'pending').length
+      : 0;
+
+    // 自動累計模式：顯示來源任務名稱
+    const sourceTask = isAuto ? allTasks.find(t => t.id === task.autoFrom) : null;
+
     html += `<div class="bg-white rounded-2xl shadow-sm p-4">
       <div class="flex items-center justify-between mb-3">
         <div class="font-bold">${task.emoji} ${task.name}</div>
         <div class="text-brand font-bold">${task.coins} 金幣</div>
       </div>
       <div class="flex justify-between text-xs text-gray-400 mb-1">
-        <span>本週進度</span><span class="font-bold ${done ? 'text-green-500' : 'text-brand'}">${progress} / ${target} 次</span>
+        <span>本週進度</span>
+        <span class="font-bold ${done ? 'text-green-500' : 'text-brand'}">${progress} / ${target} 次</span>
       </div>
       <div class="h-3 bg-gray-100 rounded-full mb-3 overflow-hidden">
         <div class="h-3 rounded-full transition-all ${done ? 'bg-green-400' : 'bg-brand'}" style="width:${pct}%"></div>
       </div>
       ${done
         ? `<div class="text-sm text-center text-green-500 font-bold py-1">🎉 本週完成！已獲得 ${task.coins} 金幣</div>`
-        : `<div class="flex items-center justify-between">
-            <span class="text-xs text-orange-400">${pendingCnt ? `${pendingCnt} 件待審核` : ''}</span>
-            <button onclick="submitTask(${task.id})" class="bg-brand text-white px-5 py-2 rounded-xl text-sm font-bold">＋ 提交進度</button>
-          </div>`
+        : isAuto
+          ? `<div class="text-xs text-center text-gray-400 py-1">
+               每次「${sourceTask?.name || '關聯任務'}」審核通過自動累計 🔗
+             </div>`
+          : `<div class="flex items-center justify-between">
+               <span class="text-xs text-orange-400">${pendingCnt ? `${pendingCnt} 件待審核` : ''}</span>
+               <button onclick="submitTask(${task.id})" class="bg-brand text-white px-5 py-2 rounded-xl text-sm font-bold">＋ 提交進度</button>
+             </div>`
       }
     </div>`;
   });
@@ -473,8 +511,9 @@ function submitTask(taskId) {
   if (type === 'once') {
     if (comps.find(c => c.taskId === taskId && c.childId === id && c.date === today())) return;
   }
-  // 每週任務：達標後不能再提交
+  // 每週任務：自動累計的不可手動提交；達標後也不能再提交
   if (type === 'weekly') {
+    if (task.autoFrom) return; // 由來源任務審核自動累計
     const progress = getWeeklyProgress(id, taskId);
     if (progress >= (task.weeklyTarget || 1)) return;
   }
@@ -843,6 +882,10 @@ function approveTask(id) {
   } else {
     // 一次性 / 多次性：每次准奏即給金幣
     setChildCoins(c.childId, getChildCoins(c.childId) + c.coins);
+    // 若有 autoFrom 連結此任務的每週挑戰，自動檢查是否達標
+    S.getOrDefault('tasks', [])
+      .filter(t => t.type === 'weekly' && t.autoFrom === c.taskId)
+      .forEach(wt => checkAndAwardWeeklyBonus(c.childId, wt.id));
   }
   renderParentMain();
 }
