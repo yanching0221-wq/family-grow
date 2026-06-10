@@ -43,6 +43,8 @@ function initData() {
   ]);
   S.set('completions', []);
   S.set('redeemedRewards', []);
+  S.set('checkIns', {});
+  S.set('lastBonusStreak', {});
   S.set('initialized', true);
 }
 
@@ -165,6 +167,87 @@ function getChildName(id) {
   return S.getOrDefault('children', []).find(c => c.id === id)?.name || `小孩${id}`;
 }
 
+// ── 打卡 & 連續天數 ───────────────────────────────────────────
+function getStreak(childId) {
+  const dates = S.getOrDefault('checkIns', {})[childId] || [];
+  let streak = 0;
+  const now = new Date();
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    if (dates.includes(d.toISOString().slice(0, 10))) streak++;
+    else break;
+  }
+  return streak;
+}
+
+function markCheckIn(childId) {
+  const checkIns = S.getOrDefault('checkIns', {});
+  if (!checkIns[childId]) checkIns[childId] = [];
+  if (checkIns[childId].includes(today())) return false; // 今天已打卡
+
+  checkIns[childId].push(today());
+  S.set('checkIns', checkIns);
+
+  // 每連續 7 天發一次獎勵
+  const streak = getStreak(childId);
+  if (streak > 0 && streak % 7 === 0) {
+    const lastBonus = S.getOrDefault('lastBonusStreak', {});
+    if (lastBonus[childId] !== streak) {
+      setChildCoins(childId, getChildCoins(childId) + 5);
+      lastBonus[childId] = streak;
+      S.set('lastBonusStreak', lastBonus);
+      return true; // 發放獎勵
+    }
+  }
+  return false;
+}
+
+function renderStreakWidget(childId) {
+  const dates   = S.getOrDefault('checkIns', {})[childId] || [];
+  const streak  = getStreak(childId);
+  const justDone = streak > 0 && streak % 7 === 0;
+  const remaining = justDone ? 0 : 7 - (streak % 7);
+
+  // 顯示最近 7 天
+  const now = new Date();
+  const circles = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(now);
+    d.setDate(d.getDate() - (6 - i));
+    const dateStr = d.toISOString().slice(0, 10);
+    return {
+      dayName: DAY_NAMES[d.getDay()],
+      checked: dates.includes(dateStr),
+      isToday: dateStr === today()
+    };
+  });
+
+  const circlesHtml = circles.map(c => `
+    <div class="flex flex-col items-center gap-1">
+      <div class="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold
+        ${c.checked ? 'bg-brand text-white' : c.isToday ? 'border-2 border-brand text-brand' : 'bg-gray-100 text-gray-300'}">
+        ${c.checked ? '✓' : c.isToday ? '今' : ''}
+      </div>
+      <span class="text-xs text-gray-400">週${c.dayName}</span>
+    </div>`).join('');
+
+  const msgHtml = justDone
+    ? `<div class="text-xs text-center text-green-500 font-bold">🎉 一週全勤！已獲得 +5 金幣</div>`
+    : `<div class="text-xs text-center text-gray-400">再打卡 <span class="text-brand font-bold">${remaining}</span> 天，獲得全勤 +5 金幣</div>`;
+
+  return `<div class="bg-white rounded-2xl shadow-sm p-4 mb-4">
+    <div class="flex items-center justify-between mb-3">
+      <div class="flex items-center gap-2">
+        <span class="text-xl">🔥</span>
+        <span class="font-bold">每日打卡</span>
+      </div>
+      <span class="font-bold ${streak > 0 ? 'text-brand' : 'text-gray-400'}">連續 ${streak} 天</span>
+    </div>
+    <div class="flex justify-between mb-3">${circlesHtml}</div>
+    ${msgHtml}
+  </div>`;
+}
+
 // ── Child: main ───────────────────────────────────────────────
 function renderChildMain() {
   const id    = window._currentChildId;
@@ -210,7 +293,8 @@ function renderChildTasks() {
 
   if (!activeTasks.length) {
     document.getElementById('child-tab-tasks').innerHTML =
-      '<p class="text-center text-gray-300 py-16">今天沒有任務，好好休息！</p>';
+      renderStreakWidget(id) +
+      '<p class="text-center text-gray-300 py-8">今天沒有任務，好好休息！</p>';
     return;
   }
 
@@ -220,7 +304,7 @@ function renderChildTasks() {
     byCategory[t.category].push(t);
   });
 
-  let html = '';
+  let html = renderStreakWidget(id);
   for (const [cat, list] of Object.entries(byCategory)) {
     html += `<h3 class="text-sm font-semibold text-gray-500 mb-3 mt-4">${cat}</h3>
     <div class="bg-white rounded-2xl shadow-sm divide-y divide-gray-50">`;
@@ -259,8 +343,14 @@ function submitTask(taskId) {
   if (comps.find(c => c.taskId === taskId && c.childId === id && c.date === today())) return;
   comps.push({ id: Date.now(), taskId, childId: id, date: today(), status: 'pending', coins: task.coins });
   S.set('completions', comps);
+
+  // 第一次提交任務 → 自動打卡，達成7天全勤 → 發放獎勵
+  const bonusAwarded = markCheckIn(id);
   renderChildTasks();
   updateChildHeader();
+  if (bonusAwarded) {
+    setTimeout(() => alert('🎉 恭喜！連續打卡 7 天，獲得全勤獎勵 +5 金幣！'), 300);
+  }
 }
 
 function renderChildRewards() {
