@@ -18,7 +18,8 @@
   </script>
   <style>
     body { background: #FAF7F4; font-family: -apple-system, 'Noto Sans TC', sans-serif; }
-    .tab-btn.active { color: #C8835A; border-bottom: 2px solid #C8835A; }
+    .tab-btn.active  { color: #C8835A; border-bottom: 2px solid #C8835A; }
+    .stab-btn.active { color: #C8835A; border-bottom: 2px solid #C8835A; font-weight: 600; }
     .task-checkbox { width:28px; height:28px; border:2px solid #C8835A; border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
     .task-checkbox.checked { background:#C8835A; }
     .badge { background:#e53e3e; color:white; border-radius:9999px; padding:1px 7px; font-size:12px; }
@@ -133,7 +134,7 @@
       </button>
       <button class="tab-btn py-3 text-gray-400 whitespace-nowrap" onclick="switchChildTab('history', this)">歷程記錄</button>
     </div>
-    <div id="child-tab-tasks" class="child-tab px-5 pt-4 pb-24"></div>
+    <div id="child-tab-tasks" class="child-tab"></div>
     <div id="child-tab-rewards" class="child-tab hidden px-5 pt-4 pb-24"></div>
     <div id="child-tab-my-rewards" class="child-tab hidden px-5 pt-4 pb-24"></div>
     <div id="child-tab-history" class="child-tab hidden px-5 pt-4 pb-24"></div>

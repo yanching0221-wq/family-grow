@@ -331,106 +331,134 @@ function renderChildTasks() {
   const activeTasks = getActiveTasks();
   const todayC      = S.getOrDefault('completions', []).filter(c => c.childId === id && c.date === today());
 
-  if (!activeTasks.length) {
-    document.getElementById('child-tab-tasks').innerHTML =
-      renderStreakWidget(id) +
-      '<p class="text-center text-gray-300 py-8">今天沒有任務，好好休息！</p>';
-    return;
-  }
+  const onceTasks   = activeTasks.filter(t => (t.type || 'once') === 'once');
+  const multiTasks  = activeTasks.filter(t => t.type === 'multi');
+  const weeklyTasks = activeTasks.filter(t => t.type === 'weekly');
 
-  const byCategory = {};
-  activeTasks.forEach(t => {
-    if (!byCategory[t.category]) byCategory[t.category] = [];
-    byCategory[t.category].push(t);
+  document.getElementById('child-tab-tasks').innerHTML = `
+    <div class="sticky top-0 z-20 bg-[#FAF7F4] px-5 pt-3">
+      ${renderStreakWidget(id)}
+      <div class="flex -mx-5 px-0 border-b border-gray-200 bg-[#FAF7F4]">
+        <button id="stab-once"   onclick="switchTaskTab('once')"   class="stab-btn active flex-1 py-2.5 text-sm text-center">每日任務</button>
+        <button id="stab-multi"  onclick="switchTaskTab('multi')"  class="stab-btn flex-1 py-2.5 text-sm text-center text-gray-400">重覆任務</button>
+        <button id="stab-weekly" onclick="switchTaskTab('weekly')" class="stab-btn flex-1 py-2.5 text-sm text-center text-gray-400">每週挑戰</button>
+      </div>
+    </div>
+    <div id="stab-once-content"   class="stab-content px-5 pt-3 pb-24">${buildOnceHtml(onceTasks, todayC)}</div>
+    <div id="stab-multi-content"  class="stab-content hidden px-5 pt-3 pb-24">${buildMultiHtml(multiTasks, todayC)}</div>
+    <div id="stab-weekly-content" class="stab-content hidden px-5 pt-3 pb-24">${buildWeeklyHtml(weeklyTasks, id)}</div>`;
+}
+
+function switchTaskTab(type) {
+  ['once','multi','weekly'].forEach(t => {
+    const btn     = document.getElementById(`stab-${t}`);
+    const content = document.getElementById(`stab-${t}-content`);
+    if (t === type) {
+      btn.className = 'stab-btn active flex-1 py-2.5 text-sm text-center';
+      content.classList.remove('hidden');
+    } else {
+      btn.className = 'stab-btn flex-1 py-2.5 text-sm text-center text-gray-400';
+      content.classList.add('hidden');
+    }
   });
+}
 
-  let html = renderStreakWidget(id);
+// ── 一次性任務列表 ─────────────────────────────────────────────
+function buildOnceHtml(tasks, todayC) {
+  if (!tasks.length) return '<p class="text-center text-gray-300 py-12">今天沒有每日任務</p>';
+  const byCategory = {};
+  tasks.forEach(t => { (byCategory[t.category] = byCategory[t.category] || []).push(t); });
+  let html = '';
   for (const [cat, list] of Object.entries(byCategory)) {
-    html += `<h3 class="text-sm font-semibold text-gray-500 mb-3 mt-4">${cat}</h3>
+    html += `<h3 class="text-sm font-semibold text-gray-500 mb-2 mt-4">${cat}</h3>
     <div class="bg-white rounded-2xl shadow-sm divide-y divide-gray-50">`;
     list.forEach(task => {
-      const type   = task.type || 'once';
-      const dayTag = task.daysOfWeek?.length
-        ? `<span class="text-xs text-blue-300 ml-1">（${task.daysOfWeek.map(d=>'週'+DAY_NAMES[d]).join('/')}）</span>` : '';
-
-      if (type === 'weekly') {
-        // ── 每週任務 ──────────────────────────────────────────
-        const progress  = getWeeklyProgress(id, task.id);
-        const target    = task.weeklyTarget || 1;
-        const done      = progress >= target;
-        const pct       = Math.min(100, Math.round(progress / target * 100));
-        const pendingCnt = S.getOrDefault('completions', [])
-          .filter(c => c.taskId === task.id && c.childId === id && c.week === getWeekStart() && c.status === 'pending').length;
-        html += `<div class="p-4">
-          <div class="flex items-center justify-between mb-2">
-            <div class="font-medium">${task.emoji} ${task.name}${dayTag}
-              <span class="text-xs bg-purple-100 text-purple-500 px-2 py-0.5 rounded-full ml-1">每週</span>
-            </div>
-            <div class="text-brand font-bold shrink-0">${task.coins} 金幣</div>
-          </div>
-          <div class="flex justify-between text-xs text-gray-400 mb-1">
-            <span>本週進度</span><span>${progress} / ${target} 次</span>
-          </div>
-          <div class="h-2 bg-gray-100 rounded-full mb-3">
-            <div class="h-2 rounded-full transition-all ${done ? 'bg-green-400' : 'bg-brand'}" style="width:${pct}%"></div>
-          </div>
-          ${done
-            ? `<div class="text-xs text-center text-green-500 font-bold">🎉 本週已完成！已獲得 ${task.coins} 金幣</div>`
-            : `<div class="flex items-center justify-between">
-                ${pendingCnt ? `<span class="text-xs text-orange-400">${pendingCnt} 件待審核</span>` : '<span></span>'}
-                <button onclick="submitTask(${task.id})" class="text-sm bg-brand text-white px-4 py-1.5 rounded-xl font-bold">＋ 提交進度</button>
-              </div>`
-          }
-        </div>`;
-
-      } else if (type === 'multi') {
-        // ── 多次性任務 ────────────────────────────────────────
-        const allToday   = todayC.filter(c => c.taskId === task.id);
-        const approvedCnt = allToday.filter(c => c.status === 'approved').length;
-        const pendingCnt  = allToday.filter(c => c.status === 'pending').length;
-        const rejectedCnt = allToday.filter(c => c.status === 'rejected').length;
-        let statusParts = [];
-        if (approvedCnt) statusParts.push(`<span class="text-green-500">已獲得 +${approvedCnt * task.coins} 金幣</span>`);
-        if (pendingCnt)  statusParts.push(`<span class="text-orange-400">${pendingCnt} 件待審核
-          <button onclick="cancelLastTask(${task.id})" class="text-gray-300 underline ml-1">取消</button></span>`);
-        if (rejectedCnt) statusParts.push(`<span class="text-red-400">${rejectedCnt} 件駁回</span>`);
-        html += `<div class="flex items-center p-4 gap-4">
-          <div class="flex-1 min-w-0">
-            <div class="font-medium">${task.emoji} ${task.name}${dayTag}
-              <span class="text-xs bg-orange-100 text-orange-500 px-2 py-0.5 rounded-full ml-1">可重複</span>
-              ${allToday.length ? `<span class="text-brand font-bold ml-1">×${allToday.length}</span>` : ''}
-            </div>
-            <div class="text-xs space-x-2">${statusParts.join(' ') || ''}</div>
-          </div>
-          <div class="flex flex-col items-end gap-1 shrink-0">
-            <div class="text-brand font-bold">${task.coins} 金幣</div>
-            <button onclick="submitTask(${task.id})" class="text-xs bg-brand text-white px-3 py-1 rounded-full">＋再做一次</button>
-          </div>
-        </div>`;
-
-      } else {
-        // ── 一次性任務（預設）────────────────────────────────
-        const comp   = todayC.find(c => c.taskId === task.id);
-        const boxCls = 'task-checkbox' + (comp ? ' checked' : '');
-        let status = '';
-        if (comp?.status === 'pending')  status = `<span class="text-xs text-orange-400">等待爸媽審核中...</span><button onclick="cancelTask(${task.id})" class="text-xs text-gray-300 underline ml-2">取消</button>`;
-        if (comp?.status === 'approved') status = `<span class="text-xs text-green-500">已獲得 +${comp.coins} 金幣</span>`;
-        if (comp?.status === 'rejected') status = `<span class="text-xs text-red-400">爸媽駁回</span>`;
-        html += `<div class="flex items-center p-4 gap-4">
-          <div class="${boxCls}" onclick="${!comp ? `submitTask(${task.id})` : ''}">
-            ${comp ? '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>' : ''}
-          </div>
-          <div class="flex-1 min-w-0">
-            <div class="font-medium">${task.emoji} ${task.name}${dayTag}</div>
-            <div>${status}</div>
-          </div>
-          <div class="text-brand font-bold shrink-0">${task.coins} 金幣</div>
-        </div>`;
-      }
+      const comp   = todayC.find(c => c.taskId === task.id);
+      const boxCls = 'task-checkbox' + (comp ? ' checked' : '');
+      const dayTag = task.daysOfWeek?.length ? `<span class="text-xs text-blue-300 ml-1">（${task.daysOfWeek.map(d=>'週'+DAY_NAMES[d]).join('/')}）</span>` : '';
+      let status = '';
+      if (comp?.status === 'pending')  status = `<span class="text-xs text-orange-400">等待爸媽審核中...</span><button onclick="cancelTask(${task.id})" class="text-xs text-gray-300 underline ml-2">取消</button>`;
+      if (comp?.status === 'approved') status = `<span class="text-xs text-green-500">已獲得 +${comp.coins} 金幣</span>`;
+      if (comp?.status === 'rejected') status = `<span class="text-xs text-red-400">爸媽駁回</span>`;
+      html += `<div class="flex items-center p-4 gap-4">
+        <div class="${boxCls}" onclick="${!comp ? `submitTask(${task.id})` : ''}">
+          ${comp ? '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>' : ''}
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="font-medium">${task.emoji} ${task.name}${dayTag}</div>
+          <div>${status}</div>
+        </div>
+        <div class="text-brand font-bold shrink-0">${task.coins} 金幣</div>
+      </div>`;
     });
     html += '</div>';
   }
-  document.getElementById('child-tab-tasks').innerHTML = html;
+  return html;
+}
+
+// ── 多次性任務列表 ─────────────────────────────────────────────
+function buildMultiHtml(tasks, todayC) {
+  if (!tasks.length) return '<p class="text-center text-gray-300 py-12">目前沒有重覆任務</p>';
+  let html = '<div class="bg-white rounded-2xl shadow-sm divide-y divide-gray-50 mt-3">';
+  tasks.forEach(task => {
+    const allToday    = todayC.filter(c => c.taskId === task.id);
+    const approvedCnt = allToday.filter(c => c.status === 'approved').length;
+    const pendingCnt  = allToday.filter(c => c.status === 'pending').length;
+    const rejectedCnt = allToday.filter(c => c.status === 'rejected').length;
+    let statusParts = [];
+    if (approvedCnt) statusParts.push(`<span class="text-green-500">已獲 +${approvedCnt * task.coins} 金幣</span>`);
+    if (pendingCnt)  statusParts.push(`<span class="text-orange-400">${pendingCnt} 件待審核 <button onclick="cancelLastTask(${task.id})" class="text-gray-300 underline ml-1">取消</button></span>`);
+    if (rejectedCnt) statusParts.push(`<span class="text-red-400">${rejectedCnt} 件駁回</span>`);
+    html += `<div class="flex items-center p-4 gap-4">
+      <div class="flex-1 min-w-0">
+        <div class="font-medium">${task.emoji} ${task.name}
+          ${allToday.length ? `<span class="text-brand font-bold ml-1">×${allToday.length}</span>` : ''}
+        </div>
+        <div class="text-xs">${statusParts.join(' ') || '<span class="text-gray-300">尚未完成</span>'}</div>
+      </div>
+      <div class="flex flex-col items-end gap-1 shrink-0">
+        <div class="text-brand font-bold">${task.coins} 金幣／次</div>
+        <button onclick="submitTask(${task.id})" class="text-xs bg-brand text-white px-3 py-1.5 rounded-full font-bold">＋ 完成一次</button>
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+  return html;
+}
+
+// ── 每週挑戰任務列表 ───────────────────────────────────────────
+function buildWeeklyHtml(tasks, childId) {
+  if (!tasks.length) return '<p class="text-center text-gray-300 py-12">目前沒有每週挑戰</p>';
+  let html = '<div class="space-y-3 mt-3">';
+  tasks.forEach(task => {
+    const progress   = getWeeklyProgress(childId, task.id);
+    const target     = task.weeklyTarget || 1;
+    const done       = progress >= target;
+    const pct        = Math.min(100, Math.round(progress / target * 100));
+    const pendingCnt = S.getOrDefault('completions', [])
+      .filter(c => c.taskId === task.id && c.childId === childId && c.week === getWeekStart() && c.status === 'pending').length;
+    html += `<div class="bg-white rounded-2xl shadow-sm p-4">
+      <div class="flex items-center justify-between mb-3">
+        <div class="font-bold">${task.emoji} ${task.name}</div>
+        <div class="text-brand font-bold">${task.coins} 金幣</div>
+      </div>
+      <div class="flex justify-between text-xs text-gray-400 mb-1">
+        <span>本週進度</span><span class="font-bold ${done ? 'text-green-500' : 'text-brand'}">${progress} / ${target} 次</span>
+      </div>
+      <div class="h-3 bg-gray-100 rounded-full mb-3 overflow-hidden">
+        <div class="h-3 rounded-full transition-all ${done ? 'bg-green-400' : 'bg-brand'}" style="width:${pct}%"></div>
+      </div>
+      ${done
+        ? `<div class="text-sm text-center text-green-500 font-bold py-1">🎉 本週完成！已獲得 ${task.coins} 金幣</div>`
+        : `<div class="flex items-center justify-between">
+            <span class="text-xs text-orange-400">${pendingCnt ? `${pendingCnt} 件待審核` : ''}</span>
+            <button onclick="submitTask(${task.id})" class="bg-brand text-white px-5 py-2 rounded-xl text-sm font-bold">＋ 提交進度</button>
+          </div>`
+      }
+    </div>`;
+  });
+  html += '</div>';
+  return html;
 }
 
 function submitTask(taskId) {
