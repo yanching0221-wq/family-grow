@@ -1181,6 +1181,24 @@ function renderParentOverview() {
     </div>
     <div class="bg-white rounded-2xl shadow-sm p-4">
       <div class="flex flex-wrap gap-2">${taskChips || '<span class="text-gray-300 text-sm">今天沒有任務</span>'}</div>
+    </div>
+
+    <div class="mt-5 bg-blue-50 border border-blue-100 rounded-2xl p-4">
+      <div class="flex items-center gap-2 mb-1">
+        <span class="text-xl">💾</span>
+        <span class="font-bold text-blue-700">資料備份與還原</span>
+      </div>
+      <p class="text-xs text-blue-500 mb-3">定期匯出備份，避免清快取或換手機後金幣歸零</p>
+      <div class="grid grid-cols-2 gap-2">
+        <button onclick="exportData()"
+          class="bg-blue-500 text-white py-2.5 rounded-xl text-sm font-bold">
+          ⬇️ 匯出備份
+        </button>
+        <label class="bg-white border border-blue-300 text-blue-600 py-2.5 rounded-xl text-sm font-bold text-center cursor-pointer">
+          ⬆️ 匯入還原
+          <input type="file" accept=".json" class="hidden" onchange="importData(this)">
+        </label>
+      </div>
     </div>`;
 }
 
@@ -1620,6 +1638,46 @@ function deleteMessage(id) {
   if (!confirm('確定刪除此提醒？')) return;
   S.set('messages', S.getOrDefault('messages', []).filter(m => m.id !== id));
   renderParentMessages();
+}
+
+// ── 資料備份與還原 ─────────────────────────────────────────────
+function exportData() {
+  const data = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    data[k] = localStorage.getItem(k);
+  }
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `family-grow-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!confirm('確定要還原備份嗎？\n目前的資料將被覆蓋，此動作無法復原。')) {
+        input.value = '';
+        return;
+      }
+      localStorage.clear();
+      Object.entries(data).forEach(([k, v]) => localStorage.setItem(k, v));
+      alert('✅ 還原成功！即將重新載入...');
+      location.reload();
+    } catch {
+      alert('⚠️ 備份檔案格式錯誤，請重新選擇正確的備份檔');
+      input.value = '';
+    }
+  };
+  reader.readAsText(file);
 }
 
 function switchParentTab(tab) {
