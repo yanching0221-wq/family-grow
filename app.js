@@ -18,9 +18,10 @@ function initData() {
 
   S.set('children', [
     { id: 1, name: '小勇者一', emoji: '🦁' },
-    { id: 2, name: '小勇者二', emoji: '🐯' }
+    { id: 2, name: '小勇者二', emoji: '🐯' },
+    { id: 3, name: '昊新',     emoji: '🐼' }
   ]);
-  S.set('coins', { 1: 0, 2: 0 });
+  S.set('coins', { 1: 0, 2: 0, 3: 0 });
   S.set('tasks', [
     { id:1, name:'整理書包',     category:'學習任務', coins:10, emoji:'🎒', daysOfWeek:[] },
     { id:2, name:'完成當天作業', category:'學習任務', coins:30, emoji:'📚', daysOfWeek:[] },
@@ -76,6 +77,7 @@ function saveSetup() {
   const p   = document.getElementById('setup-parent-pin').value.trim();
   const c1n = document.getElementById('setup-child1-name').value.trim() || '小勇者一';
   const c2n = document.getElementById('setup-child2-name').value.trim() || '小勇者二';
+  const c3n = document.getElementById('setup-child3-name').value.trim() || '昊新';
 
   if (p.length < 4) { alert('請輸入4位爸媽密碼'); return; }
 
@@ -83,6 +85,7 @@ function saveSetup() {
   const children = S.getOrDefault('children', []);
   if (children[0]) children[0].name = c1n;
   if (children[1]) children[1].name = c2n;
+  if (children[2]) children[2].name = c3n;
   S.set('children', children);
 
   renderWelcome();
