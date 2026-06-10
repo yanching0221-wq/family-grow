@@ -48,6 +48,11 @@ function getDefaultTasks() {
     { id:20, name:'跳繩500下',                    category:'運動',     coins:2, emoji:'🪢', daysOfWeek:[], type:'multi',  targetGrade:'all', difficulty:'medium' },
     // ── 每週挑戰 ────────────────────────────────────────
     { id:21, name:'本週跳繩5000下',               category:'每週挑戰', coins:4, emoji:'🏅', daysOfWeek:[], type:'weekly', targetGrade:'all', weeklyTarget:10, autoFrom:20 },
+    // ── 週末任務 ────────────────────────────────────────
+    { id:13, name:'9點前完成早餐',    category:'週末任務', coins:1, emoji:'🍳', daysOfWeek:[0,6], type:'once', targetGrade:'all', difficulty:'simple' },
+    { id:14, name:'公園放風30分鐘',   category:'週末任務', coins:2, emoji:'🌳', daysOfWeek:[0,6], type:'once', targetGrade:'all', difficulty:'medium' },
+    { id:15, name:'跑步3K',           category:'週末任務', coins:3, emoji:'🏃', daysOfWeek:[0,6], type:'once', targetGrade:'all', difficulty:'hard'   },
+    { id:16, name:'倒垃圾',           category:'週末任務', coins:1, emoji:'🗑️', daysOfWeek:[0,6], type:'once', targetGrade:'all', difficulty:'simple' },
   ];
 }
 
@@ -107,6 +112,20 @@ function initData() {
       S.set('tasks', tasks);
       S.set('data_v4', true);
     }
+
+    // v5 遷移：新增週末任務
+    if (!S.get('data_v5')) {
+      const tasks      = S.getOrDefault('tasks', []);
+      const existingIds = tasks.map(t => t.id);
+      [
+        { id:13, name:'9點前完成早餐',  category:'週末任務', coins:1, emoji:'🍳', daysOfWeek:[0,6], type:'once', targetGrade:'all', difficulty:'simple' },
+        { id:14, name:'公園放風30分鐘', category:'週末任務', coins:2, emoji:'🌳', daysOfWeek:[0,6], type:'once', targetGrade:'all', difficulty:'medium' },
+        { id:15, name:'跑步3K',         category:'週末任務', coins:3, emoji:'🏃', daysOfWeek:[0,6], type:'once', targetGrade:'all', difficulty:'hard'   },
+        { id:16, name:'倒垃圾',         category:'週末任務', coins:1, emoji:'🗑️', daysOfWeek:[0,6], type:'once', targetGrade:'all', difficulty:'simple' },
+      ].forEach(wt => { if (!existingIds.includes(wt.id)) tasks.push(wt); });
+      S.set('tasks', tasks);
+      S.set('data_v5', true);
+    }
     return;
   }
 
@@ -137,6 +156,7 @@ function initData() {
   S.set('lastBonusStreak',{});
   S.set('data_v3',        true);
   S.set('data_v4',        true);
+  S.set('data_v5',        true);
   S.set('initialized',    true);
 }
 
@@ -455,33 +475,41 @@ function renderChildTasks() {
   const activeTasks = getActiveTasks(child?.grade);
   const todayC      = S.getOrDefault('completions', []).filter(c => c.childId === id && c.date === today());
 
-  const onceTasks   = activeTasks.filter(t => (t.type || 'once') === 'once');
-  const multiTasks  = activeTasks.filter(t => t.type === 'multi');
-  const weeklyTasks = activeTasks.filter(t => t.type === 'weekly');
+  const onceTasks    = activeTasks.filter(t => (t.type||'once')==='once' && t.category !== '週末任務');
+  const multiTasks   = activeTasks.filter(t => t.type === 'multi');
+  const weeklyTasks  = activeTasks.filter(t => t.type === 'weekly');
+  // 週末任務：從全任務（不限今日星期）取，讓非週末也能看到列表
+  const allTasks     = S.getOrDefault('tasks', []).filter(t => {
+    const gradeOk = !t.targetGrade || t.targetGrade === 'all' || t.targetGrade === child?.grade;
+    return gradeOk && t.category === '週末任務';
+  });
 
   document.getElementById('child-tab-tasks').innerHTML = `
     <div class="sticky top-0 z-20 bg-[#FAF7F4] px-5 pt-3">
       ${renderStreakWidget(id)}
-      <div class="flex -mx-5 px-0 border-b border-gray-200 bg-[#FAF7F4]">
-        <button id="stab-once"   onclick="switchTaskTab('once')"   class="stab-btn active flex-1 py-2.5 text-sm text-center">每日任務</button>
-        <button id="stab-multi"  onclick="switchTaskTab('multi')"  class="stab-btn flex-1 py-2.5 text-sm text-center text-gray-400">重覆任務</button>
-        <button id="stab-weekly" onclick="switchTaskTab('weekly')" class="stab-btn flex-1 py-2.5 text-sm text-center text-gray-400">每週挑戰</button>
+      <div class="flex -mx-5 px-0 border-b border-gray-200 bg-[#FAF7F4] overflow-x-auto">
+        <button id="stab-once"    onclick="switchTaskTab('once')"    class="stab-btn active shrink-0 flex-1 py-2.5 text-sm text-center">每日任務</button>
+        <button id="stab-multi"   onclick="switchTaskTab('multi')"   class="stab-btn shrink-0 flex-1 py-2.5 text-sm text-center text-gray-400">重覆任務</button>
+        <button id="stab-weekend" onclick="switchTaskTab('weekend')" class="stab-btn shrink-0 flex-1 py-2.5 text-sm text-center text-gray-400">週末任務</button>
+        <button id="stab-weekly"  onclick="switchTaskTab('weekly')"  class="stab-btn shrink-0 flex-1 py-2.5 text-sm text-center text-gray-400">每週挑戰</button>
       </div>
     </div>
-    <div id="stab-once-content"   class="stab-content px-5 pt-3 pb-24">${buildOnceHtml(onceTasks, todayC)}</div>
-    <div id="stab-multi-content"  class="stab-content hidden px-5 pt-3 pb-24">${buildMultiHtml(multiTasks, todayC)}</div>
-    <div id="stab-weekly-content" class="stab-content hidden px-5 pt-3 pb-24">${buildWeeklyHtml(weeklyTasks, id)}</div>`;
+    <div id="stab-once-content"    class="stab-content px-5 pt-3 pb-24">${buildOnceHtml(onceTasks, todayC)}</div>
+    <div id="stab-multi-content"   class="stab-content hidden px-5 pt-3 pb-24">${buildMultiHtml(multiTasks, todayC)}</div>
+    <div id="stab-weekend-content" class="stab-content hidden px-5 pt-3 pb-24">${buildWeekendHtml(allTasks, todayC)}</div>
+    <div id="stab-weekly-content"  class="stab-content hidden px-5 pt-3 pb-24">${buildWeeklyHtml(weeklyTasks, id)}</div>`;
 }
 
 function switchTaskTab(type) {
-  ['once','multi','weekly'].forEach(t => {
+  ['once','multi','weekend','weekly'].forEach(t => {
     const btn     = document.getElementById(`stab-${t}`);
     const content = document.getElementById(`stab-${t}-content`);
+    if (!btn || !content) return;
     if (t === type) {
-      btn.className = 'stab-btn active flex-1 py-2.5 text-sm text-center';
+      btn.className = 'stab-btn active shrink-0 flex-1 py-2.5 text-sm text-center';
       content.classList.remove('hidden');
     } else {
-      btn.className = 'stab-btn flex-1 py-2.5 text-sm text-center text-gray-400';
+      btn.className = 'stab-btn shrink-0 flex-1 py-2.5 text-sm text-center text-gray-400';
       content.classList.add('hidden');
     }
   });
@@ -568,6 +596,44 @@ function buildMultiHtml(tasks, todayC) {
         <div class="text-brand font-bold">${task.coins} 金幣／次</div>
         <button onclick="submitTask(${task.id})" class="text-xs bg-brand text-white px-3 py-1.5 rounded-full font-bold">＋ 完成一次</button>
       </div>
+    </div>`;
+  });
+  html += '</div>';
+  return html;
+}
+
+// ── 週末任務列表 ───────────────────────────────────────────────
+function buildWeekendHtml(tasks, todayC) {
+  const dow = new Date().getDay();
+  const isWeekend = dow === 0 || dow === 6;
+
+  if (!isWeekend) {
+    return `<div class="flex flex-col items-center py-14 text-center">
+      <div class="text-5xl mb-3">🌅</div>
+      <div class="font-bold text-gray-400 mb-1">週末才有任務喔！</div>
+      <div class="text-xs text-gray-300">週六、週日才會出現</div>
+    </div>`;
+  }
+  if (!tasks.length) return '<p class="text-center text-gray-300 py-12">今天沒有週末任務</p>';
+
+  let html = '<div class="bg-white rounded-2xl shadow-sm divide-y divide-gray-50 mt-3">';
+  tasks.forEach(task => {
+    const comp   = todayC.find(c => c.taskId === task.id);
+    const boxCls = 'task-checkbox' + (comp ? ' checked' : '');
+    const diffDot = task.difficulty ? (DIFF_INFO[task.difficulty]?.dot || '') : '';
+    let status = '';
+    if (comp?.status === 'pending')  status = `<span class="text-xs text-orange-400">等待爸媽審核中...</span><button onclick="cancelTask(${task.id})" class="text-xs text-gray-300 underline ml-2">取消</button>`;
+    if (comp?.status === 'approved') status = `<span class="text-xs text-green-500">已獲得 +${comp.coins} 點</span>`;
+    if (comp?.status === 'rejected') status = `<span class="text-xs text-red-400">爸媽駁回</span>`;
+    html += `<div class="flex items-center p-4 gap-4">
+      <div class="${boxCls}" onclick="${!comp ? `submitTask(${task.id})` : ''}">
+        ${comp ? '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>' : ''}
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="font-medium">${task.emoji} ${task.name} <span class="text-sm">${diffDot}</span></div>
+        <div>${status}</div>
+      </div>
+      <div class="text-brand font-bold shrink-0">${task.coins} 點</div>
     </div>`;
   });
   html += '</div>';
@@ -1192,7 +1258,7 @@ function renderParentTasks() {
       <input id="new-task-emoji" placeholder="Emoji（如 📚）" value="⭐" class="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-brand">
       <input id="new-task-coins" type="number" placeholder="金幣數量" value="10" class="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-brand">
       <select id="new-task-category" class="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-brand">
-        <option>每日任務</option><option>低年級專屬</option><option>高年級專屬</option><option>運動</option><option>每週挑戰</option>
+        <option>每日任務</option><option>低年級專屬</option><option>高年級專屬</option><option>週末任務</option><option>運動</option><option>每週挑戰</option>
       </select>
       <div>
         <div class="text-sm text-gray-400 mb-2">適用年級</div>
