@@ -15,7 +15,7 @@ function initData() {
     localStorage.clear();
   }
   if (S.get('initialized')) {
-    // 自動補上第三個小孩（舊資料只有兩個小孩時）
+    // 自動補上第三個小孩
     const children = S.getOrDefault('children', []);
     if (children.length < 3) {
       children.push({ id: 3, name: '小勇者三', emoji: '🐼' });
@@ -23,6 +23,11 @@ function initData() {
       const coins = S.getOrDefault('coins', {});
       if (!coins[3]) { coins[3] = 0; S.set('coins', coins); }
     }
+    // 自動補上 type 欄位（舊任務沒有 type）
+    const tasks = S.getOrDefault('tasks', []);
+    let updated = false;
+    tasks.forEach(t => { if (!t.type) { t.type = 'once'; updated = true; } });
+    if (updated) S.set('tasks', tasks);
     return;
   }
 
@@ -33,12 +38,14 @@ function initData() {
   ]);
   S.set('coins', { 1: 0, 2: 0, 3: 0 });
   S.set('tasks', [
-    { id:1, name:'整理書包',     category:'學習任務', coins:10, emoji:'🎒', daysOfWeek:[] },
-    { id:2, name:'完成當天作業', category:'學習任務', coins:30, emoji:'📚', daysOfWeek:[] },
-    { id:3, name:'摺棉被整理床', category:'生活雜事', coins:10, emoji:'🛏️', daysOfWeek:[] },
-    { id:4, name:'幫忙洗碗',     category:'生活雜事', coins:20, emoji:'🍽️', daysOfWeek:[] },
-    { id:5, name:'倒垃圾',       category:'生活雜事', coins:20, emoji:'🗑️', daysOfWeek:[6] },
-    { id:6, name:'練習才藝30分鐘',category:'學習任務', coins:20, emoji:'🎵', daysOfWeek:[] },
+    { id:1, name:'整理書包',      category:'學習任務', coins:10, emoji:'🎒', daysOfWeek:[], type:'once'   },
+    { id:2, name:'完成當天作業',  category:'學習任務', coins:30, emoji:'📚', daysOfWeek:[], type:'once'   },
+    { id:3, name:'摺棉被整理床',  category:'生活雜事', coins:10, emoji:'🛏️', daysOfWeek:[], type:'once'   },
+    { id:4, name:'幫忙洗碗',      category:'生活雜事', coins:20, emoji:'🍽️', daysOfWeek:[], type:'once'   },
+    { id:5, name:'倒垃圾',        category:'生活雜事', coins:20, emoji:'🗑️', daysOfWeek:[6], type:'once'  },
+    { id:6, name:'練習才藝30分鐘',category:'學習任務', coins:20, emoji:'🎵', daysOfWeek:[], type:'once'   },
+    { id:7, name:'跳繩500下',     category:'運動',     coins:15, emoji:'🪢', daysOfWeek:[], type:'multi'  },
+    { id:8, name:'本週跳繩5000下',category:'每週挑戰', coins:50, emoji:'🏅', daysOfWeek:[], type:'weekly', weeklyTarget:10 },
   ]);
   S.set('rewards', [
     { id:1, name:'手搖飲一杯',   desc:'任選，限50元內', coins:80,  emoji:'🧋' },
@@ -169,6 +176,35 @@ function setChildCoins(id, amount) {
 
 function getChildName(id) {
   return S.getOrDefault('children', []).find(c => c.id === id)?.name || `小孩${id}`;
+}
+
+// 取本週一的日期字串，作為「這週」的唯一識別
+function getWeekStart() {
+  const d = new Date();
+  const day = d.getDay();
+  d.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
+  return d.toISOString().slice(0, 10);
+}
+
+// 本週已審核通過的次數（weekly 任務用）
+function getWeeklyProgress(childId, taskId) {
+  const week = getWeekStart();
+  return S.getOrDefault('completions', [])
+    .filter(c => c.taskId === taskId && c.childId === childId && c.week === week && c.status === 'approved')
+    .length;
+}
+
+// 本週是否已領過全勤獎勵
+function checkAndAwardWeeklyBonus(childId, taskId) {
+  const task = S.getOrDefault('tasks', []).find(t => t.id === taskId);
+  if (!task || task.type !== 'weekly') return false;
+  const progress = getWeeklyProgress(childId, taskId);
+  if (progress < task.weeklyTarget) return false;
+  const key = `wb_${childId}_${taskId}_${getWeekStart()}`;
+  if (S.get(key)) return false;
+  setChildCoins(childId, getChildCoins(childId) + task.coins);
+  S.set(key, true);
+  return true;
 }
 
 // ── 打卡 & 連續天數 ───────────────────────────────────────────
@@ -313,25 +349,84 @@ function renderChildTasks() {
     html += `<h3 class="text-sm font-semibold text-gray-500 mb-3 mt-4">${cat}</h3>
     <div class="bg-white rounded-2xl shadow-sm divide-y divide-gray-50">`;
     list.forEach(task => {
-      const comp  = todayC.find(c => c.taskId === task.id);
-      const boxCls = 'task-checkbox' + (comp ? ' checked' : '');
+      const type   = task.type || 'once';
       const dayTag = task.daysOfWeek?.length
         ? `<span class="text-xs text-blue-300 ml-1">（${task.daysOfWeek.map(d=>'週'+DAY_NAMES[d]).join('/')}）</span>` : '';
-      let status = '';
-      if (comp?.status === 'pending')  status = `<span class="text-xs text-orange-400">等待爸媽審核中...</span><button onclick="cancelTask(${task.id})" class="text-xs text-gray-300 underline ml-2">取消</button>`;
-      if (comp?.status === 'approved') status = `<span class="text-xs text-green-500">已獲得 +${comp.coins} 金幣</span>`;
-      if (comp?.status === 'rejected') status = `<span class="text-xs text-red-400">爸媽駁回</span>`;
 
-      html += `<div class="flex items-center p-4 gap-4">
-        <div class="${boxCls}" onclick="${!comp ? `submitTask(${task.id})` : ''}">
-          ${comp ? '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>' : ''}
-        </div>
-        <div class="flex-1 min-w-0">
-          <div class="font-medium">${task.emoji} ${task.name}${dayTag}</div>
-          <div>${status}</div>
-        </div>
-        <div class="text-brand font-bold shrink-0">${task.coins} 金幣</div>
-      </div>`;
+      if (type === 'weekly') {
+        // ── 每週任務 ──────────────────────────────────────────
+        const progress  = getWeeklyProgress(id, task.id);
+        const target    = task.weeklyTarget || 1;
+        const done      = progress >= target;
+        const pct       = Math.min(100, Math.round(progress / target * 100));
+        const pendingCnt = S.getOrDefault('completions', [])
+          .filter(c => c.taskId === task.id && c.childId === id && c.week === getWeekStart() && c.status === 'pending').length;
+        html += `<div class="p-4">
+          <div class="flex items-center justify-between mb-2">
+            <div class="font-medium">${task.emoji} ${task.name}${dayTag}
+              <span class="text-xs bg-purple-100 text-purple-500 px-2 py-0.5 rounded-full ml-1">每週</span>
+            </div>
+            <div class="text-brand font-bold shrink-0">${task.coins} 金幣</div>
+          </div>
+          <div class="flex justify-between text-xs text-gray-400 mb-1">
+            <span>本週進度</span><span>${progress} / ${target} 次</span>
+          </div>
+          <div class="h-2 bg-gray-100 rounded-full mb-3">
+            <div class="h-2 rounded-full transition-all ${done ? 'bg-green-400' : 'bg-brand'}" style="width:${pct}%"></div>
+          </div>
+          ${done
+            ? `<div class="text-xs text-center text-green-500 font-bold">🎉 本週已完成！已獲得 ${task.coins} 金幣</div>`
+            : `<div class="flex items-center justify-between">
+                ${pendingCnt ? `<span class="text-xs text-orange-400">${pendingCnt} 件待審核</span>` : '<span></span>'}
+                <button onclick="submitTask(${task.id})" class="text-sm bg-brand text-white px-4 py-1.5 rounded-xl font-bold">＋ 提交進度</button>
+              </div>`
+          }
+        </div>`;
+
+      } else if (type === 'multi') {
+        // ── 多次性任務 ────────────────────────────────────────
+        const allToday   = todayC.filter(c => c.taskId === task.id);
+        const approvedCnt = allToday.filter(c => c.status === 'approved').length;
+        const pendingCnt  = allToday.filter(c => c.status === 'pending').length;
+        const rejectedCnt = allToday.filter(c => c.status === 'rejected').length;
+        let statusParts = [];
+        if (approvedCnt) statusParts.push(`<span class="text-green-500">已獲得 +${approvedCnt * task.coins} 金幣</span>`);
+        if (pendingCnt)  statusParts.push(`<span class="text-orange-400">${pendingCnt} 件待審核
+          <button onclick="cancelLastTask(${task.id})" class="text-gray-300 underline ml-1">取消</button></span>`);
+        if (rejectedCnt) statusParts.push(`<span class="text-red-400">${rejectedCnt} 件駁回</span>`);
+        html += `<div class="flex items-center p-4 gap-4">
+          <div class="flex-1 min-w-0">
+            <div class="font-medium">${task.emoji} ${task.name}${dayTag}
+              <span class="text-xs bg-orange-100 text-orange-500 px-2 py-0.5 rounded-full ml-1">可重複</span>
+              ${allToday.length ? `<span class="text-brand font-bold ml-1">×${allToday.length}</span>` : ''}
+            </div>
+            <div class="text-xs space-x-2">${statusParts.join(' ') || ''}</div>
+          </div>
+          <div class="flex flex-col items-end gap-1 shrink-0">
+            <div class="text-brand font-bold">${task.coins} 金幣</div>
+            <button onclick="submitTask(${task.id})" class="text-xs bg-brand text-white px-3 py-1 rounded-full">＋再做一次</button>
+          </div>
+        </div>`;
+
+      } else {
+        // ── 一次性任務（預設）────────────────────────────────
+        const comp   = todayC.find(c => c.taskId === task.id);
+        const boxCls = 'task-checkbox' + (comp ? ' checked' : '');
+        let status = '';
+        if (comp?.status === 'pending')  status = `<span class="text-xs text-orange-400">等待爸媽審核中...</span><button onclick="cancelTask(${task.id})" class="text-xs text-gray-300 underline ml-2">取消</button>`;
+        if (comp?.status === 'approved') status = `<span class="text-xs text-green-500">已獲得 +${comp.coins} 金幣</span>`;
+        if (comp?.status === 'rejected') status = `<span class="text-xs text-red-400">爸媽駁回</span>`;
+        html += `<div class="flex items-center p-4 gap-4">
+          <div class="${boxCls}" onclick="${!comp ? `submitTask(${task.id})` : ''}">
+            ${comp ? '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>' : ''}
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="font-medium">${task.emoji} ${task.name}${dayTag}</div>
+            <div>${status}</div>
+          </div>
+          <div class="text-brand font-bold shrink-0">${task.coins} 金幣</div>
+        </div>`;
+      }
     });
     html += '</div>';
   }
@@ -343,9 +438,22 @@ function submitTask(taskId) {
   const tasks = S.getOrDefault('tasks', []);
   const task  = tasks.find(t => t.id === taskId);
   if (!task) return;
+  const type  = task.type || 'once';
   const comps = S.getOrDefault('completions', []);
-  if (comps.find(c => c.taskId === taskId && c.childId === id && c.date === today())) return;
-  comps.push({ id: Date.now(), taskId, childId: id, date: today(), status: 'pending', coins: task.coins });
+
+  // 一次性：每天只能提交一次
+  if (type === 'once') {
+    if (comps.find(c => c.taskId === taskId && c.childId === id && c.date === today())) return;
+  }
+  // 每週任務：達標後不能再提交
+  if (type === 'weekly') {
+    const progress = getWeeklyProgress(id, taskId);
+    if (progress >= (task.weeklyTarget || 1)) return;
+  }
+
+  const entry = { id: Date.now(), taskId, childId: id, date: today(), status: 'pending', coins: task.coins, type };
+  if (type === 'weekly') entry.week = getWeekStart();
+  comps.push(entry);
   S.set('completions', comps);
 
   // 第一次提交任務 → 自動打卡，達成7天全勤 → 發放獎勵
@@ -362,6 +470,23 @@ function cancelTask(taskId) {
   const comps = S.getOrDefault('completions', []);
   const idx   = comps.findIndex(c => c.taskId === taskId && c.childId === id && c.date === today() && c.status === 'pending');
   if (idx !== -1) comps.splice(idx, 1);
+  S.set('completions', comps);
+  renderChildTasks();
+  updateChildHeader();
+}
+
+// 多次性任務：取消最後一筆待審核
+function cancelLastTask(taskId) {
+  const id    = window._currentChildId;
+  const comps = S.getOrDefault('completions', []);
+  // 找最後一筆 pending
+  for (let i = comps.length - 1; i >= 0; i--) {
+    const c = comps[i];
+    if (c.taskId === taskId && c.childId === id && c.status === 'pending') {
+      comps.splice(i, 1);
+      break;
+    }
+  }
   S.set('completions', comps);
   renderChildTasks();
   updateChildHeader();
@@ -682,8 +807,15 @@ function approveTask(id) {
   const c = comps.find(x => x.id === id);
   if (!c) return;
   c.status = 'approved';
-  setChildCoins(c.childId, getChildCoins(c.childId) + c.coins);
   S.set('completions', comps);
+  const taskType = c.type || 'once';
+  if (taskType === 'weekly') {
+    // 每週任務：達標才給金幣
+    checkAndAwardWeeklyBonus(c.childId, c.taskId);
+  } else {
+    // 一次性 / 多次性：每次准奏即給金幣
+    setChildCoins(c.childId, getChildCoins(c.childId) + c.coins);
+  }
   renderParentMain();
 }
 
@@ -734,8 +866,28 @@ function renderParentTasks() {
       <input id="new-task-emoji" placeholder="Emoji（如 📚）" value="⭐" class="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-brand">
       <input id="new-task-coins" type="number" placeholder="金幣數量" value="10" class="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-brand">
       <select id="new-task-category" class="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-brand">
-        <option>學習任務</option><option>生活雜事</option>
+        <option>學習任務</option><option>生活雜事</option><option>運動</option><option>每週挑戰</option>
       </select>
+      <div>
+        <div class="text-sm text-gray-400 mb-2">任務類型</div>
+        <div class="grid grid-cols-3 gap-2">
+          <label class="flex flex-col items-center p-3 border-2 border-gray-200 rounded-xl cursor-pointer has-[:checked]:border-brand has-[:checked]:bg-brand-light text-center">
+            <input type="radio" name="new-task-type" value="once" checked class="hidden"> <span class="text-lg">1️⃣</span><span class="text-xs font-bold mt-1">一次性</span><span class="text-xs text-gray-400">每天1次</span>
+          </label>
+          <label class="flex flex-col items-center p-3 border-2 border-gray-200 rounded-xl cursor-pointer has-[:checked]:border-brand has-[:checked]:bg-brand-light text-center">
+            <input type="radio" name="new-task-type" value="multi" class="hidden"> <span class="text-lg">🔁</span><span class="text-xs font-bold mt-1">多次性</span><span class="text-xs text-gray-400">無限次</span>
+          </label>
+          <label class="flex flex-col items-center p-3 border-2 border-gray-200 rounded-xl cursor-pointer has-[:checked]:border-brand has-[:checked]:bg-brand-light text-center">
+            <input type="radio" name="new-task-type" value="weekly" class="hidden"> <span class="text-lg">📅</span><span class="text-xs font-bold mt-1">每週任務</span><span class="text-xs text-gray-400">累計達標</span>
+          </label>
+        </div>
+      </div>
+      <div id="weekly-target-field" class="hidden">
+        <div class="text-sm text-gray-400 mb-2">本週需完成次數</div>
+        <input id="new-task-weekly-target" type="number" value="5" min="1"
+          class="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-brand">
+        <div class="text-xs text-gray-400 mt-1">例：跳繩5000下，每次500下 → 填 10</div>
+      </div>
       <div>
         <div class="text-sm text-gray-400 mb-2">指定星期（不選 = 每天都出現）</div>
         <div class="flex flex-wrap gap-3">${dayCheckboxes}</div>
@@ -748,12 +900,12 @@ function renderParentTasks() {
     html += `<h3 class="text-sm font-semibold text-gray-500 mb-2 mt-4">${cat}</h3>
     <div class="bg-white rounded-2xl shadow-sm divide-y divide-gray-50 mb-3">`;
     list.forEach(task => {
-      const dayLabel = task.daysOfWeek?.length
-        ? task.daysOfWeek.map(d=>DAY_FULL[d]).join('、') : '每天';
+      const dayLabel  = task.daysOfWeek?.length ? task.daysOfWeek.map(d=>DAY_FULL[d]).join('、') : '每天';
+      const typeLabel = task.type==='multi' ? '🔁 多次性' : task.type==='weekly' ? `📅 每週×${task.weeklyTarget||1}` : '1️⃣ 一次性';
       html += `<div class="flex items-center p-4 gap-3">
         <div class="text-2xl">${task.emoji}</div>
         <div class="flex-1"><div class="font-medium">${task.name}</div>
-        <div class="text-xs text-gray-400">${task.coins} 金幣・${dayLabel}</div></div>
+        <div class="text-xs text-gray-400">${task.coins} 金幣・${dayLabel}・${typeLabel}</div></div>
         <button onclick="deleteTask(${task.id})" class="text-red-300 text-sm px-3 py-1 hover:text-red-500">刪除</button>
       </div>`;
     });
@@ -766,15 +918,27 @@ function showAddTaskForm() {
   document.getElementById('add-task-form').classList.toggle('hidden');
 }
 
+// 顯示/隱藏每週目標欄位
+document.addEventListener('change', e => {
+  if (e.target.name === 'new-task-type') {
+    const field = document.getElementById('weekly-target-field');
+    if (field) field.classList.toggle('hidden', e.target.value !== 'weekly');
+  }
+});
+
 function addTask() {
-  const name     = document.getElementById('new-task-name').value.trim();
-  const emoji    = document.getElementById('new-task-emoji').value.trim() || '⭐';
-  const coins    = parseInt(document.getElementById('new-task-coins').value) || 10;
-  const category = document.getElementById('new-task-category').value;
-  const days     = [...document.querySelectorAll('input[name="new-task-days"]:checked')].map(el=>+el.value);
+  const name         = document.getElementById('new-task-name').value.trim();
+  const emoji        = document.getElementById('new-task-emoji').value.trim() || '⭐';
+  const coins        = parseInt(document.getElementById('new-task-coins').value) || 10;
+  const category     = document.getElementById('new-task-category').value;
+  const days         = [...document.querySelectorAll('input[name="new-task-days"]:checked')].map(el=>+el.value);
+  const type         = document.querySelector('input[name="new-task-type"]:checked')?.value || 'once';
+  const weeklyTarget = type === 'weekly' ? (parseInt(document.getElementById('new-task-weekly-target').value) || 5) : undefined;
   if (!name) { alert('請輸入任務名稱'); return; }
   const tasks = S.getOrDefault('tasks', []);
-  tasks.push({ id: Date.now(), name, emoji, coins, category, daysOfWeek: days });
+  const task = { id: Date.now(), name, emoji, coins, category, daysOfWeek: days, type };
+  if (weeklyTarget) task.weeklyTarget = weeklyTarget;
+  tasks.push(task);
   S.set('tasks', tasks);
   renderParentTasks();
 }
