@@ -318,7 +318,7 @@ function renderChildTasks() {
       const dayTag = task.daysOfWeek?.length
         ? `<span class="text-xs text-blue-300 ml-1">（${task.daysOfWeek.map(d=>'週'+DAY_NAMES[d]).join('/')}）</span>` : '';
       let status = '';
-      if (comp?.status === 'pending')  status = `<span class="text-xs text-orange-400">等待爸媽審核中...</span>`;
+      if (comp?.status === 'pending')  status = `<span class="text-xs text-orange-400">等待爸媽審核中...</span><button onclick="cancelTask(${task.id})" class="text-xs text-gray-300 underline ml-2">取消</button>`;
       if (comp?.status === 'approved') status = `<span class="text-xs text-green-500">已獲得 +${comp.coins} 金幣</span>`;
       if (comp?.status === 'rejected') status = `<span class="text-xs text-red-400">爸媽駁回</span>`;
 
@@ -355,6 +355,16 @@ function submitTask(taskId) {
   if (bonusAwarded) {
     setTimeout(() => alert('🎉 恭喜！連續打卡 7 天，獲得全勤獎勵 +5 金幣！'), 300);
   }
+}
+
+function cancelTask(taskId) {
+  const id    = window._currentChildId;
+  const comps = S.getOrDefault('completions', []);
+  const idx   = comps.findIndex(c => c.taskId === taskId && c.childId === id && c.date === today() && c.status === 'pending');
+  if (idx !== -1) comps.splice(idx, 1);
+  S.set('completions', comps);
+  renderChildTasks();
+  updateChildHeader();
 }
 
 function renderChildRewards() {
