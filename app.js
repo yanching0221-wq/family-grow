@@ -348,10 +348,7 @@ function hideLoading() {
 
 // ── Family management ──────────────────────────────────────────
 function generateFamilyCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let c = '';
-  for (let i = 0; i < 6; i++) c += chars[Math.floor(Math.random() * chars.length)];
-  return c;
+  return String(Math.floor(Math.random() * 90) + 10); // 10–99
 }
 
 function setupFamilyListener() {
@@ -392,8 +389,8 @@ async function startNewFamily() {
 }
 
 async function joinFamilySubmit() {
-  const code = document.getElementById('join-code-input').value.trim().toUpperCase();
-  if (code.length < 4) { alert('請輸入家庭代碼'); return; }
+  const code = document.getElementById('join-code-input').value.trim();
+  if (code.length < 2) { alert('請輸入2碼家庭代碼'); return; }
   showLoading('連線中...');
   try {
     const snap = await dbGet(ref(_db, `families/${code}`));
