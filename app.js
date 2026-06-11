@@ -658,6 +658,8 @@ function renderChildMain() {
   const id    = window._currentChildId;
   const child = S.getOrDefault('children', []).find(c => c.id === id);
   document.getElementById('child-name-display').textContent = child?.name || '小勇者';
+  const codeEl = document.getElementById('child-family-code-text');
+  if (codeEl) codeEl.textContent = _familyCode || '';
   // 顯示年級標籤
   const gradeEl = document.getElementById('child-grade-display');
   if (gradeEl) {
