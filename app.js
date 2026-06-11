@@ -724,9 +724,15 @@ function renderChildTasks() {
     <div id="stab-multi-content"   class="stab-content hidden px-5 pt-3 pb-24">${buildMultiHtml(multiTasks, todayC)}</div>
     <div id="stab-weekend-content" class="stab-content hidden px-5 pt-3 pb-24">${buildWeekendHtml(allTasks, todayC)}</div>
     <div id="stab-weekly-content"  class="stab-content hidden px-5 pt-3 pb-24">${buildWeeklyHtml(weeklyTasks, id)}</div>`;
+
+  // 恢復上次所在的 sub-tab
+  if (window._currentTaskTab && window._currentTaskTab !== 'once') {
+    switchTaskTab(window._currentTaskTab);
+  }
 }
 
 function switchTaskTab(type) {
+  window._currentTaskTab = type;
   ['once','multi','weekend','weekly'].forEach(t => {
     const btn     = document.getElementById(`stab-${t}`);
     const content = document.getElementById(`stab-${t}-content`);
