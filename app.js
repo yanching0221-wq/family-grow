@@ -49,12 +49,12 @@ const DAY_FULL  = ['週日','週一','週二','週三','週四','週五','週六
 
 // ── 等級里程碑（依 1–4 點/任務 校正）─────────────────────────
 const TIERS = [
-  { pts:0,   label:'新手村民',   emoji:'🌱', desc:'冒險旅程的第一步，出發！',      bg:'bg-green-50',  text:'text-green-700'  },
-  { pts:15,  label:'初級冒險者', emoji:'⭐', desc:'好習慣正在養成中，繼續！',      bg:'bg-yellow-50', text:'text-yellow-700' },
-  { pts:40,  label:'勇敢挑戰者', emoji:'🥉', desc:'每一關都難不倒你！',            bg:'bg-orange-50', text:'text-orange-700' },
-  { pts:90,  label:'任務達人',   emoji:'🥈', desc:'任務完成率超高，太厲害了！',    bg:'bg-blue-50',   text:'text-blue-700'   },
-  { pts:160, label:'王牌冒險者', emoji:'🥇', desc:'只差一步，傳說就在眼前！',      bg:'bg-purple-50', text:'text-purple-700' },
-  { pts:250, label:'傳說勇者',   emoji:'👑', desc:'無人能及的冒險傳說！',           bg:'bg-red-50',    text:'text-red-700'    },
+  { pts:0,    label:'新手村民',   emoji:'🌱', desc:'冒險旅程的第一步，出發！',      bg:'bg-green-50',  text:'text-green-700'  },
+  { pts:50,   label:'初級冒險者', emoji:'⭐', desc:'好習慣正在養成中，繼續！',      bg:'bg-yellow-50', text:'text-yellow-700' },
+  { pts:200,  label:'勇敢挑戰者', emoji:'🥉', desc:'每一關都難不倒你！',            bg:'bg-orange-50', text:'text-orange-700' },
+  { pts:500,  label:'任務達人',   emoji:'🥈', desc:'任務完成率超高，太厲害了！',    bg:'bg-blue-50',   text:'text-blue-700'   },
+  { pts:800,  label:'王牌冒險者', emoji:'🥇', desc:'只差一步，傳說就在眼前！',      bg:'bg-purple-50', text:'text-purple-700' },
+  { pts:1200, label:'傳說勇者',   emoji:'👑', desc:'無人能及的冒險傳說！',           bg:'bg-red-50',    text:'text-red-700'    },
 ];
 
 // ── 任務難度說明 ───────────────────────────────────────────────
@@ -116,7 +116,7 @@ function getDefaultRewards() {
     // 遊戲時間兌換
     { id:1, name:'遊戲 15 分鐘',    desc:'平日使用，當日有效不累積',    coins:5,  emoji:'🎮', category:'遊戲時間' },
     { id:2, name:'遊戲 60 分鐘',    desc:'平日或週末均可，整一小時',    coins:15, emoji:'🕹️', category:'遊戲時間' },
-    { id:3, name:'週末加碼 2 小時', desc:'僅限週末，需提前一天預約',    coins:30, emoji:'⏱️', category:'遊戲時間' },
+    { id:3, name:'週末 2 小時',      desc:'僅限週末',                   coins:30, emoji:'⏱️', category:'遊戲時間' },
     // 其他獎勵
     { id:4, name:'選週末外食地點',  desc:'全家一起享用',                coins:20, emoji:'🍜', category:'其他獎勵' },
     { id:5, name:'選假日活動',      desc:'公園、電影、DIY 等',          coins:40, emoji:'🎡', category:'其他獎勵' },
@@ -838,7 +838,9 @@ function buildMultiHtml(tasks, todayC) {
       </div>
       <div class="flex flex-col items-end gap-1 shrink-0">
         <div class="text-brand font-bold">${task.coins} 金幣／次</div>
-        <button onclick="submitTask(${task.id})" class="text-xs bg-brand text-white px-3 py-1.5 rounded-full font-bold">＋ 完成一次</button>
+        ${allToday.length >= 10
+          ? `<button disabled class="text-xs bg-gray-200 text-gray-400 px-3 py-1.5 rounded-full font-bold">已達上限</button>`
+          : `<button onclick="submitTask(${task.id})" class="text-xs bg-brand text-white px-3 py-1.5 rounded-full font-bold">＋ 完成一次</button>`}
       </div>
     </div>`;
   });
@@ -933,6 +935,11 @@ function submitTask(taskId) {
   // 一次性：每天只能提交一次
   if (type === 'once') {
     if (comps.find(c => c.taskId === taskId && c.childId === id && c.date === today())) return;
+  }
+  // 重覆任務：每天最多10次
+  if (type === 'multi') {
+    const todayCount = comps.filter(c => c.taskId === taskId && c.childId === id && c.date === today()).length;
+    if (todayCount >= 10) { alert('今天這個任務已達上限（10次）！'); return; }
   }
   // 每週任務：自動累計的不可手動提交；達標後也不能再提交
   if (type === 'weekly') {
@@ -1268,6 +1275,8 @@ function renderParentMain() {
   renderParentRewardsMgmt();
   renderParentMessages();
   updateBadges();
+  const codeEl = document.getElementById('parent-family-code-text');
+  if (codeEl) codeEl.textContent = _familyCode || '';
 }
 
 function updateBadges() {

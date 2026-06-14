@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>我們這一家</title>
+  <title>冒險者任務</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -30,7 +30,7 @@
   <!-- PAGE: family-select -->
   <div id="page-family-select" class="page hidden flex flex-col items-center justify-center min-h-screen p-8">
     <div class="text-6xl mb-6">🏠</div>
-    <h1 class="text-3xl font-bold mb-1">我們這一家</h1>
+    <h1 class="text-3xl font-bold mb-1">冒險者任務</h1>
     <p class="text-gray-400 text-sm mb-8">FAMILY GROW TOGETHER</p>
     <div class="w-full space-y-4">
       <div class="bg-white rounded-2xl p-4 shadow-sm space-y-3">
@@ -69,7 +69,7 @@
   <!-- PAGE: welcome -->
   <div id="page-welcome" class="page hidden flex flex-col items-center justify-center min-h-screen p-8">
     <div class="text-6xl mb-6">⭐</div>
-    <h1 class="text-3xl font-bold mb-1">我們這一家</h1>
+    <h1 class="text-3xl font-bold mb-1">冒險者任務</h1>
     <p class="text-gray-400 text-sm mb-12">FAMILY GROW TOGETHER</p>
     <div id="welcome-buttons" class="w-full space-y-4">
       <!-- 由 JS 動態產生 -->
@@ -80,7 +80,7 @@
   <div id="page-setup" class="page hidden p-8">
     <div class="flex flex-col items-center pt-8">
       <div class="text-6xl mb-6">⭐</div>
-      <h2 class="text-2xl font-bold mb-2">歡迎來到我們這一家</h2>
+      <h2 class="text-2xl font-bold mb-2">歡迎來到冒險者任務</h2>
       <p class="text-gray-400 text-sm text-center mb-8">首次使用需要設定<br>爸媽與小孩各自的通關密語</p>
       <div class="w-full bg-brand-light rounded-2xl p-4 mb-4 text-center">
         <div class="text-xs text-gray-500 mb-1">你的家庭代碼（分享給家人加入）</div>
@@ -228,6 +228,10 @@
     <div id="parent-tab-messages" class="parent-tab hidden px-5 pt-4 pb-24"></div>
     <div class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white border-t border-gray-100 py-3 text-center">
       <button onclick="logout()" class="text-gray-400 text-sm">登出</button>
+    </div>
+    <div id="parent-family-code-badge"
+      class="fixed bottom-4 right-4 bg-white/80 border border-gray-200 rounded-xl px-3 py-1.5 text-xs text-gray-400 shadow-sm z-40">
+      代碼 <span id="parent-family-code-text" class="font-bold text-gray-500"></span>
     </div>
   </div>
 
