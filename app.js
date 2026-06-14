@@ -115,8 +115,8 @@ function getDefaultRewards() {
   return [
     // 遊戲時間兌換
     { id:1, name:'遊戲 15 分鐘',    desc:'平日使用，當日有效不累積',    coins:5,  emoji:'🎮', category:'遊戲時間' },
-    { id:2, name:'遊戲 60 分鐘',    desc:'平日或週末均可，整一小時',    coins:18, emoji:'🕹️', category:'遊戲時間' },
-    { id:3, name:'週末 2 小時',      desc:'僅限週末',                   coins:35, emoji:'⏱️', category:'遊戲時間' },
+    { id:2, name:'遊戲 60 分鐘',         desc:'平日或週末均可，整一小時',    coins:20, emoji:'🕹️', category:'遊戲時間' },
+    { id:3, name:'遊戲2小時（假日兌換）', desc:'僅限週末',                   coins:40, emoji:'⏱️', category:'遊戲時間' },
     // 其他獎勵
     { id:4, name:'選週末外食地點',  desc:'全家一起享用',                coins:20, emoji:'🍜', category:'其他獎勵' },
     { id:5, name:'選假日活動',      desc:'公園、電影、DIY 等',          coins:40, emoji:'🎡', category:'其他獎勵' },
