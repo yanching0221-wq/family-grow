@@ -121,6 +121,8 @@ function getDefaultRewards() {
     { id:4, name:'選週末外食地點',  desc:'全家一起享用',                coins:20, emoji:'🍜', category:'其他獎勵' },
     { id:5, name:'選假日活動',      desc:'公園、電影、DIY 等',          coins:40, emoji:'🎡', category:'其他獎勵' },
     { id:6, name:'大獎勵',          desc:'玩具、書、特殊體驗',          coins:80, emoji:'🎁', category:'其他獎勵' },
+    { id:7, name:'爸媽陪玩桌遊',   desc:'選一款桌遊，全家一起玩',      coins:25, emoji:'🎲', category:'其他獎勵' },
+    { id:8, name:'免被碎念券',      desc:'使用當天免被碎念一次',         coins:15, emoji:'🎟️', category:'其他獎勵' },
   ];
 }
 
@@ -137,8 +139,7 @@ function getDefaultTasks() {
     // ── 低年級專屬 ──────────────────────────────────────
     { id:7,  name:'完成音樂練習',                 category:'低年級專屬', coins:1, emoji:'🎵', daysOfWeek:[], type:'once',  targetGrade:'low',  difficulty:'simple', isPractice:true },
     { id:8,  name:'練習 15 分鐘',                 category:'低年級專屬', coins:2, emoji:'⏱️', daysOfWeek:[], type:'once',  targetGrade:'low',  difficulty:'medium', isPractice:true },
-    { id:9,  name:'練習 30 分鐘以上',             category:'低年級專屬', coins:3, emoji:'⏰', daysOfWeek:[], type:'once',  targetGrade:'low',  difficulty:'hard',   isPractice:true },
-    { id:10, name:'主動練習（不用提醒）',          category:'低年級專屬', coins:3, emoji:'💪', daysOfWeek:[], type:'once',  targetGrade:'low',  difficulty:'hard',   isPractice:true },
+    { id:10, name:'主動練習（不用提醒）',          category:'低年級專屬', coins:1, emoji:'💪', daysOfWeek:[], type:'once',  targetGrade:'low',  difficulty:'hard',   isPractice:true },
     // ── 高年級專屬 ──────────────────────────────────────
     { id:11, name:'主動複習 / 整理筆記',           category:'高年級專屬', coins:3, emoji:'📖', daysOfWeek:[], type:'once',  targetGrade:'high', difficulty:'hard'    },
     { id:12, name:'協助規劃家庭事務',              category:'高年級專屬', coins:3, emoji:'📋', daysOfWeek:[], type:'once',  targetGrade:'high', difficulty:'hard'    },
@@ -838,7 +839,7 @@ function buildMultiHtml(tasks, todayC) {
       </div>
       <div class="flex flex-col items-end gap-1 shrink-0">
         <div class="text-brand font-bold">${task.coins} 金幣／次</div>
-        ${allToday.length >= 10
+        ${allToday.length >= 5
           ? `<button disabled class="text-xs bg-gray-200 text-gray-400 px-3 py-1.5 rounded-full font-bold">已達上限</button>`
           : `<button onclick="submitTask(${task.id})" class="text-xs bg-brand text-white px-3 py-1.5 rounded-full font-bold">＋ 完成一次</button>`}
       </div>
@@ -939,7 +940,7 @@ function submitTask(taskId) {
   // 重覆任務：每天最多10次
   if (type === 'multi') {
     const todayCount = comps.filter(c => c.taskId === taskId && c.childId === id && c.date === today()).length;
-    if (todayCount >= 10) { alert('今天這個任務已達上限（10次）！'); return; }
+    if (todayCount >= 5) { alert('今天這個任務已達上限（5次）！'); return; }
   }
   // 每週任務：自動累計的不可手動提交；達標後也不能再提交
   if (type === 'weekly') {
