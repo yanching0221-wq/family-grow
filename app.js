@@ -1280,6 +1280,52 @@ function renderParentMain() {
   if (codeEl) codeEl.textContent = _familyCode || '';
 }
 
+let _bonusChildId = null;
+
+function selectBonusChild(id) {
+  _bonusChildId = id;
+  document.querySelectorAll('#bonus-child-selector button').forEach(btn => {
+    btn.classList.remove('bg-amber-400', 'text-white', 'border-amber-400');
+    btn.classList.add('bg-white', 'text-amber-600', 'border-amber-200');
+  });
+  const sel = document.getElementById(`bonus-child-${id}`);
+  if (sel) {
+    sel.classList.remove('bg-white', 'text-amber-600', 'border-amber-200');
+    sel.classList.add('bg-amber-400', 'text-white', 'border-amber-400');
+  }
+}
+
+function setBonusPts(n) {
+  const el = document.getElementById('bonus-pts-input');
+  if (el) el.value = n;
+}
+
+function giveBonus() {
+  if (!_bonusChildId) { alert('請先選擇孩子'); return; }
+  const pts = parseInt(document.getElementById('bonus-pts-input').value);
+  if (!pts || pts < 1) { alert('請輸入點數'); return; }
+  const reason = document.getElementById('bonus-reason-input').value.trim() || '爸媽額外獎勵';
+
+  const coins = S.getOrDefault('coins', {});
+  coins[_bonusChildId] = (coins[_bonusChildId] || 0) + pts;
+  S.set('coins', coins);
+
+  const lc = S.getOrDefault('lifetimeCoins', {});
+  lc[_bonusChildId] = (lc[_bonusChildId] || 0) + pts;
+  S.set('lifetimeCoins', lc);
+
+  // 記錄到 completions 讓歷史可查
+  const comps = S.getOrDefault('completions', []);
+  comps.push({ id: Date.now(), taskId: 0, childId: _bonusChildId, date: today(),
+    status: 'approved', coins: pts, type: 'bonus', note: reason });
+  S.set('completions', comps);
+
+  document.getElementById('bonus-pts-input').value = '';
+  document.getElementById('bonus-reason-input').value = '';
+  alert(`✅ 已給予 ${pts} 點（${reason}）`);
+  renderParentOverview();
+}
+
 function updateBadges() {
   const n = S.getOrDefault('completions', []).filter(c => c.status === 'pending').length
           + S.getOrDefault('redeemedRewards', []).filter(r => r.status === 'pending-use').length;
@@ -1362,6 +1408,37 @@ function renderParentOverview() {
         <div class="text-xl font-bold tracking-widest text-brand">${_familyCode || '------'}</div>
       </div>
       <button onclick="leaveFamily()" class="text-xs text-gray-400 underline">離開家庭</button>
+    </div>
+
+    <div class="mt-4 bg-amber-50 border border-amber-100 rounded-2xl p-4">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="text-xl">⭐</span>
+        <span class="font-bold text-amber-700">臨時點數</span>
+        <span class="text-xs text-amber-500 ml-1">依實際表現額外給予</span>
+      </div>
+      <div class="flex gap-2 mb-3" id="bonus-child-selector">
+        ${children.map(c => `<button onclick="selectBonusChild(${c.id})"
+          id="bonus-child-${c.id}"
+          class="flex-1 py-2 rounded-xl text-sm font-bold border-2 border-amber-200 text-amber-600 bg-white">
+          ${c.emoji} ${c.name}
+        </button>`).join('')}
+      </div>
+      <div class="flex gap-2 mb-3">
+        ${[1,3,5,10].map(n => `<button onclick="setBonusPts(${n})"
+          class="flex-1 py-1.5 rounded-xl text-sm font-bold bg-white border border-amber-200 text-amber-600">
+          +${n}
+        </button>`).join('')}
+      </div>
+      <div class="flex gap-2 mb-3">
+        <input id="bonus-pts-input" type="number" min="1" max="99" placeholder="點數" value=""
+          class="w-20 border border-amber-200 rounded-xl px-3 py-2 text-sm text-center font-bold focus:outline-none focus:border-amber-400">
+        <input id="bonus-reason-input" type="text" placeholder="原因（選填）"
+          class="flex-1 border border-amber-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-400">
+      </div>
+      <button onclick="giveBonus()"
+        class="w-full bg-amber-400 text-white py-2.5 rounded-xl text-sm font-bold">
+        給予點數
+      </button>
     </div>
 
     <div class="mt-3 bg-blue-50 border border-blue-100 rounded-2xl p-4">
@@ -1907,5 +1984,6 @@ Object.assign(window, {
   addMessage, deleteMessage, selectEmoji,
   filterHistory, togglePointGuide,
   setChildGrade, exportData, importData,
+  selectBonusChild, setBonusPts, giveBonus,
   renderChildRewards,
 });
