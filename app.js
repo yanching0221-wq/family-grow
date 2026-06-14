@@ -122,7 +122,7 @@ function getDefaultRewards() {
     { id:5, name:'選假日活動',      desc:'公園、電影、DIY 等',          coins:40, emoji:'🎡', category:'其他獎勵' },
     { id:6, name:'大獎勵',          desc:'玩具、書、特殊體驗',          coins:80, emoji:'🎁', category:'其他獎勵' },
     { id:7, name:'爸媽陪玩桌遊',   desc:'選一款桌遊，全家一起玩',      coins:25, emoji:'🎲', category:'其他獎勵' },
-    { id:8, name:'免被碎念券',      desc:'使用當天免被碎念一次',         coins:15, emoji:'🎟️', category:'其他獎勵' },
+    { id:8, name:'免被碎念券',      desc:'使用當天免被碎念一次',         coins:30, emoji:'🎟️', category:'其他獎勵' },
   ];
 }
 
