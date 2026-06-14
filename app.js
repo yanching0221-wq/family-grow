@@ -115,8 +115,8 @@ function getDefaultRewards() {
   return [
     // 遊戲時間兌換
     { id:1, name:'遊戲 15 分鐘',    desc:'平日使用，當日有效不累積',    coins:5,  emoji:'🎮', category:'遊戲時間' },
-    { id:2, name:'遊戲 60 分鐘',    desc:'平日或週末均可，整一小時',    coins:15, emoji:'🕹️', category:'遊戲時間' },
-    { id:3, name:'週末 2 小時',      desc:'僅限週末',                   coins:30, emoji:'⏱️', category:'遊戲時間' },
+    { id:2, name:'遊戲 60 分鐘',    desc:'平日或週末均可，整一小時',    coins:18, emoji:'🕹️', category:'遊戲時間' },
+    { id:3, name:'週末 2 小時',      desc:'僅限週末',                   coins:35, emoji:'⏱️', category:'遊戲時間' },
     // 其他獎勵
     { id:4, name:'選週末外食地點',  desc:'全家一起享用',                coins:20, emoji:'🍜', category:'其他獎勵' },
     { id:5, name:'選假日活動',      desc:'公園、電影、DIY 等',          coins:40, emoji:'🎡', category:'其他獎勵' },
@@ -135,7 +135,7 @@ function getDefaultTasks() {
     { id:3,  name:'9點前洗澡',                    category:'每日任務', coins:1, emoji:'🚿', daysOfWeek:[], type:'once',   targetGrade:'all', difficulty:'simple'  },
     { id:4,  name:'做一件家事',                   category:'每日任務', coins:1, emoji:'🧹', daysOfWeek:[], type:'once',   targetGrade:'all', difficulty:'simple'  },
     { id:5,  name:'跟長輩打招呼',                 category:'每日任務', coins:1, emoji:'🙏', daysOfWeek:[], type:'once',   targetGrade:'all', difficulty:'simple'  },
-    { id:6,  name:'完成英文練習',                 category:'每日任務', coins:2, emoji:'🔤', daysOfWeek:[], type:'once',   targetGrade:'all', difficulty:'medium'  },
+    { id:6,  name:'完成均一平台練習',              category:'每日任務', coins:2, emoji:'🔤', daysOfWeek:[], type:'once',   targetGrade:'all', difficulty:'medium'  },
     // ── 低年級專屬 ──────────────────────────────────────
     { id:7,  name:'完成音樂練習',                 category:'低年級專屬', coins:1, emoji:'🎵', daysOfWeek:[], type:'once',  targetGrade:'low',  difficulty:'simple', isPractice:true },
     { id:8,  name:'練習 15 分鐘',                 category:'低年級專屬', coins:2, emoji:'⏱️', daysOfWeek:[], type:'once',  targetGrade:'low',  difficulty:'medium', isPractice:true },
@@ -146,7 +146,7 @@ function getDefaultTasks() {
     // ── 運動（可重複）─────────────────────────────────
     { id:20, name:'跳繩500下',                    category:'運動',     coins:2, emoji:'🪢', daysOfWeek:[], type:'multi',  targetGrade:'all', difficulty:'medium' },
     // ── 每週挑戰 ────────────────────────────────────────
-    { id:21, name:'本週跳繩5000下',               category:'每週挑戰', coins:4, emoji:'🏅', daysOfWeek:[], type:'weekly', targetGrade:'all', weeklyTarget:10, autoFrom:20 },
+    { id:21, name:'本週跳繩5000下',               category:'每週挑戰', coins:5, emoji:'🏅', daysOfWeek:[], type:'weekly', targetGrade:'all', weeklyTarget:10, autoFrom:20 },
     // ── 週末任務 ────────────────────────────────────────
     { id:13, name:'9點前完成早餐',    category:'週末任務', coins:1, emoji:'🍳', daysOfWeek:[], type:'once', targetGrade:'all', difficulty:'simple' },
     { id:14, name:'公園放風30分鐘',   category:'週末任務', coins:2, emoji:'🌳', daysOfWeek:[], type:'once', targetGrade:'all', difficulty:'medium' },
@@ -839,7 +839,7 @@ function buildMultiHtml(tasks, todayC) {
       </div>
       <div class="flex flex-col items-end gap-1 shrink-0">
         <div class="text-brand font-bold">${task.coins} 金幣／次</div>
-        ${allToday.length >= 5
+        ${allToday.length >= 10
           ? `<button disabled class="text-xs bg-gray-200 text-gray-400 px-3 py-1.5 rounded-full font-bold">已達上限</button>`
           : `<button onclick="submitTask(${task.id})" class="text-xs bg-brand text-white px-3 py-1.5 rounded-full font-bold">＋ 完成一次</button>`}
       </div>
@@ -940,7 +940,7 @@ function submitTask(taskId) {
   // 重覆任務：每天最多10次
   if (type === 'multi') {
     const todayCount = comps.filter(c => c.taskId === taskId && c.childId === id && c.date === today()).length;
-    if (todayCount >= 5) { alert('今天這個任務已達上限（5次）！'); return; }
+    if (todayCount >= 10) { alert('今天這個任務已達上限（10次）！'); return; }
   }
   // 每週任務：自動累計的不可手動提交；達標後也不能再提交
   if (type === 'weekly') {
